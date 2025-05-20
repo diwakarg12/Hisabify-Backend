@@ -23,15 +23,18 @@ const expenseSchema = new mongoose.Schema({
     },
     createdBy: {
         type: mongoose.Schema.ObjectId,
-        required: [true, "expense creator is Required"]
+        required: [true, "expense creator is Required"],
+        ref: "User"
     },
     createdFor: {
         type: mongoose.Schema.ObjectId,
-        required: [true, "Contributor is Required"]
+        required: [true, "Contributor is Required"],
+        ref: "User"
     },
     isPersonal: {
         type: Boolean,
-        required: [true, "IsPersonal flag is Required"]
+        required: [true, "IsPersonal flag is Required"],
+        default: false
     },
     groupId: {
         type: mongoose.Schema.ObjectId,

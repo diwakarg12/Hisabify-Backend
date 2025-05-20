@@ -10,7 +10,7 @@ authRouter.post('/signup', async (req, res) => {
         signupValidation(req.body);
         const { firstName, lastName, gender, age, phone, email, password } = req.body;
 
-        const existingUser = User.findOne({
+        const existingUser = await User.findOne({
             $or: [
                 { email: email },
                 { phone: phone }

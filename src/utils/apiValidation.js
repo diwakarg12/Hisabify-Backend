@@ -1,4 +1,5 @@
 const validator = require('validator');
+const mongoose = require('mongoose');
 
 const signupValidation = (data) => {
     const { firstName, lastName, email, phone, gender, age, password } = data;
@@ -61,9 +62,31 @@ const updateProfileValidation = (data) => {
     }
 };
 
+const addExpenseValidation = (data) => {
+    const validCaterogies = [];
+    if (data.amount && !validator.isNumeric(data.amount) && !validator.isInt(data.amount.toString(), { min: 0, max: 999999999 })) {
+        throw new Error("Amount is Invalid, Please Enter Valid Amount");
+    } else if (data.description && !validator.isLength(data.description, { min: 10, max: 999999 })) {
+        throw new Error("Description is should between 10 to 999999 characters");
+    } else if (data.category && !validCaterogies.includes(data.category)) {
+        throw new Error("Invalid Category, Please enter valid Category");
+    } else if (data.createdFor && !mongoose.Types.ObjectId.isValid(data.createdFor)) {
+        throw new Error("Invalid CreatedFor userId");
+    } else if (!validator.isBoolean(data.isPersonal)) {
+        throw new Error("isPersonal is not Boolean");
+    } else if (data.groupId && !mongoose.Types.ObjectId.isValid(data.groupId)) {
+        throw new Error("Invalid GroupId");
+    } else if (data.receiptImage) {
+        if (!isValidImageUrlOrBase64(data.receiptImage)) {
+            throw new Error("Invalid Profile URL");
+        }
+    }
+};
+
 module.exports = {
     signupValidation,
     loginValidation,
     updatePasswordValidation,
-    updateProfileValidation
+    updateProfileValidation,
+    addExpenseValidation
 }
