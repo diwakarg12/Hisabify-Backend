@@ -120,10 +120,32 @@ const addExpenseValidation = (data) => {
     }
 };
 
+const logValidation = (data) => {
+    const { action, description, meta, performedBy, targetUser, group, expense } = logData;
+
+    if (action && !validator.isLength(action, { min: 3 })) {
+        throw new Error("Action should a string and should more than 3 character");
+    } else if (description && !validator.isLength(description, { min: 10 })) {
+        throw new Error("Description should be more than 10 characters");
+    } else if (meta && !Object.prototype.toString.call(meta) === '[object Object]') {
+        throw new Error("Invalid meta Data");
+    } else if (performedBy && !mongoose.isValidObjectId(performedBy)) {
+        throw new Error("CreatedBy is not Valid ObjectId");
+    } else if (targetUser && !mongoose.isValidObjectId(targetUser)) {
+        throw new Error("targetUser is not Valid ObjectId");
+    } else if (group && !mongoose.isValidObjectId(group)) {
+        throw new Error("Group us ot a valid ObjectId");
+    } else if (expense && !mongoose.isValidObjectId(expense)) {
+        throw new Error("Expense is not a valid ObjectId");
+    }
+
+}
+
 module.exports = {
     signupValidation,
     loginValidation,
     updatePasswordValidation,
     updateProfileValidation,
-    addExpenseValidation
+    addExpenseValidation,
+    logValidation
 }
