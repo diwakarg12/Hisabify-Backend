@@ -88,22 +88,34 @@ const updateProfileValidation = (data) => {
 
 
 const addExpenseValidation = (data) => {
-    const validCaterogies = [];
-    if (data.amount && !validator.isNumeric(data.amount) && !validator.isInt(data.amount.toString(), { min: 0, max: 999999999 })) {
+    const { amount, description, category, createdFor, isPersonal, groupId, receiptImage, date } = data;
+    const validCaterogies = ["shopping", "Food & Dining", "Groceries", "Restaurants", "Education", "Travel", "Entertainment", "Health & Wellness", "Gifts & Donations", "Miscellaneous"];
+    if (amount && !validator.isNumeric(amount) && !validator.isInt(amount.toString(), { min: 0, max: 999999999 })) {
         throw new Error("Amount is Invalid, Please Enter Valid Amount");
-    } else if (data.description && !validator.isLength(data.description, { min: 10, max: 999999 })) {
+    } else if (description && !validator.isLength(description, { min: 10, max: 999999 })) {
         throw new Error("Description is should between 10 to 999999 characters");
-    } else if (data.category && !validCaterogies.includes(data.category)) {
-        throw new Error("Invalid Category, Please enter valid Category");
-    } else if (data.createdFor && !mongoose.Types.ObjectId.isValid(data.createdFor)) {
+    } else if (category && !validCaterogies.includes(category)) {
+        throw new Error("Invalid Category, Please Select valid Category");
+    } else if (createdFor && !mongoose.Types.ObjectId.isValid(createdFor)) {
         throw new Error("Invalid CreatedFor userId");
-    } else if (!validator.isBoolean(data.isPersonal)) {
-        throw new Error("isPersonal is not Boolean");
-    } else if (data.groupId && !mongoose.Types.ObjectId.isValid(data.groupId)) {
+    } else if (!validator.isBoolean(isPersonal)) {
+        throw new Error("isPersonal is Invalid");
+    } else if (groupId && !mongoose.Types.ObjectId.isValid(groupId)) {
         throw new Error("Invalid GroupId");
-    } else if (data.receiptImage) {
+    } else if (receiptImage) {
         if (!isValidImageUrlOrBase64(data.receiptImage)) {
             throw new Error("Invalid Profile URL");
+        };
+    } else if (date) {
+        if (validator.isDate(date, { format: 'YYYY-MM-DD', strictMode: true })) {
+            const newDate = new Date(date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (newDate > today) {
+                throw new Error("You can't choose future date");
+            }
+        } else {
+            throw new Error("Invalid Date Format");
         }
     }
 };
