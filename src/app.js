@@ -4,6 +4,9 @@ const connectDB = require('./config/db');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const authRouter = require('../src/routes/authRouter');
+const profileRouter = require('./routes/profileRouter');
+const groupRouter = require('./routes/groupRouter');
+const inviteRouter = require('./routes/inviteRouter');
 const PORT = process.env.PORT || 3000;
 dotenv.config();
 const app = express();
@@ -16,7 +19,9 @@ app.use(cors({
 }))
 
 
-app.use("/auth", authRouter);
+app.use('/auth', authRouter);
+app.use('/profile', profileRouter);
+
 
 connectDB().then(() => {
     console.log('Database connected successfully');
