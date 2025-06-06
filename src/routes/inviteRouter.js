@@ -5,57 +5,98 @@ const User = require('../models/user.model');
 const Invitation = require('../models/invitation.model');
 const inviteRouter = express.Router();
 
-inviteRouter.post('/invite-user:/groupId', userAuth, async (req, res) => {
+inviteRouter.post('/send/:groupId', userAuth, async (req, res) => {
     try {
 
-        const loggedInUserId = req.user._id;
-        const groupId = req.params.groupId;
-        const invitedUser = req.body.invitedUser;
+        const loggedInUser = req.user;
+        const { groupId } = req.params;
+        const { invitedTo } = req.body;
 
-        if (!loggedInUserId) {
-            res.status.json({ message: "You are not Authorized, Please Login" })
+        if (!loggedInUser) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" })
         }
 
-        const user = await User.findOne({ email: invitedUser });
+        const user = await User.findOne({ email: invitedTo });
         if (!user) {
-            res.status.json({ message: "User is not Registered, please Register User First" })
+            return res.status(404).json({ message: "No User Found" });
+        }
+
+        const userInGroup = await Group.findOne({ _id: groupId, members: user._id });
+        if (userInGroup) {
+            return res.status(400).json({ message: "User Already present in the Group" })
+        }
+
+        const existingInvitation = await Invitation.findOne({ groupId: groupId, invitedTo: user._id });
+        if (existingInvitation) {
+            return res.status(400).json({ message: "User Already Invited" })
         }
 
         const invite = await Invitation.create({
             groupId: groupId,
-            invitedBy: loggedInUserId,
-            invitedUser: user._id,
+            invitedBy: loggedInUser._id,
+            invitedTo: user._id,
             status: "pending"
         });
 
-        res.status(200).json({ message: "User Invited Sucessfully", invitation: invite })
+        res.status(200).json({ message: `You have Invited ${user.firstName} successfully!`, invitation: invite })
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error.message })
+    }
+});
+
+inviteRouter.get('/view', userAuth, async (req, res) => {
+    try {
+
+        const loggedInUser = req.user;
+        if (!loggedInUser) {
+            return res.status(401).json({ message: "You are not Authorized, Please login" })
+        }
+
+        const invitations = await Invitation.find({ invitedTo: loggedInUser._id, status: 'pending' })
+            .populate('groupId', "groupName")
+            .populate('invitedBy', "firstName lastName email");
+
+        if (!invitations) {
+            return res.status(404).json({ message: "You haven't received any request" })
+        }
+
+        res.status(200).json({ message: `You have Received ${invitations.length} invitations`, invitations: invitations });
 
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error })
     }
 });
 
-inviteRouter.post('/invite-review:/status:/invitedBy:/groupId', userAuth, async (req, res) => {
+inviteRouter.post('/review/:status/:groupId', userAuth, async (req, res) => {
     try {
-
-        const loggedInUserId = req.user._id;
-        const status = req.params.status;
-        const invitedBy = req.params.invitedBy;
-        const groupId = req.params.groupId;
-
-        if (!loggedInUserId) {
-            res.status(401).json({ message: "You are not Authorized, Please Login" })
+ 
+        const loggedInUser = req.user;
+        if (!loggedInUser) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" })
         }
+
+        const { status, groupId } = req.params;
         const group = await Group.findById(groupId);
         if (!group) {
-            res.status(404).json({ message: "Invalid GroupId" })
+            return res.status(404).json({ message: "No group found" });
         }
-        const invitation = await Invitation.findOne({ invitedBy: invitedBy, groupId: groupId });
+
+        const invitation = await Invitation.findOne({ groupId: groupId, status: "pending" });
         if (!invitation) {
             res.status(404).json({ message: "No invitation Found" });
         }
-        invitation.status = status;
-        await invitation.save();
+
+        if (status === 'accepted') {
+            invitation.status = status;
+            await invitation.save();
+
+            const group = await Group.findByIdAndUpdate(groupId, { $addToSet: { members: loggedInUser._id } })
+        } else {
+            invitation.status = status;
+            await invitation.save();
+        }
+
         res.status(200).json({ message: `You have ${status} the Invitation of Group ${group.groupName}` })
 
     } catch (error) {
@@ -63,17 +104,7 @@ inviteRouter.post('/invite-review:/status:/invitedBy:/groupId', userAuth, async 
     }
 });
 
-inviteRouter.get('/view-invitations', userAuth, async (req, res) => {
-    try {
-
-        const loggedInUserId = req.user._id;
-        const invitations = await Invitation.find({ invitedUser: loggedInUserId });
-        res.status(200).json({ message: `You have Received ${invitations.length} invitations`, invitations: invitations });
-
-    } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error })
-    }
-});
+module.exports = inviteRouter;
 
 
 

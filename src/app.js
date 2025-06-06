@@ -21,6 +21,8 @@ app.use(cors({
 
 app.use('/auth', authRouter);
 app.use('/profile', profileRouter);
+app.use('/group', groupRouter);
+app.use('/invite', inviteRouter);
 
 
 connectDB().then(() => {

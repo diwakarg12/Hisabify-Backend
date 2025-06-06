@@ -11,7 +11,7 @@ const invitationSchema = new mongoose.Schema({
         ref: "User",
         require: [true, "InvitedBy is Required"]
     },
-    invitedUser: {
+    invitedTo: {
         type: mongoose.Schema.ObjectId,
         ref: "User",
         require: [true, "InvitedUser is Required"]
@@ -27,9 +27,9 @@ const invitationSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-invitationSchema.index({ groupId : 1});
-invitationSchema.index({ invitedBy : 1});
-invitationSchema.index({ invitedUser : 1});
+invitationSchema.index({ groupId: 1 });
+invitationSchema.index({ invitedBy: 1 });
+invitationSchema.index({ invitedUser: 1 });
 
 const Invitation = new mongoose.model("Invitation", invitationSchema);
 module.exports = Invitation;

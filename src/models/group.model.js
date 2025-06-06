@@ -11,6 +11,10 @@ const groupSchema = new mongoose.Schema({
         required: true,
         ref: "User"
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     members: [{
         type: mongoose.Schema.ObjectId,
         ref: "User"
@@ -18,9 +22,8 @@ const groupSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-groupSchema.index({ name: 1 });
-groupSchema.index({ createdBy: 1 });
-groupSchema.index({ members: 1 });
+groupSchema.index({ members: 1, isDeleted: 1 });
+groupSchema.index({ _id: 1, isDeleted: 1 });
 
 const Group = new mongoose.model("Group", groupSchema);
 
