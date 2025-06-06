@@ -23,9 +23,9 @@ const userSchema = new mongoose.Schema({
             message: "{VALUE} is Required"
         }
     },
-    age: {
-        type: Number,
-        require: [true, "Age is required"]
+    dob: {
+        type: Date,
+        require: [true, "Age is required"],
     },
     profile: {
         type: String,
@@ -34,6 +34,15 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         require: [true, "Password is Required"]
+    },
+    income: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    occupation: {
+        type: String,
+        default: "Not Assigned"
     }
 }, { timestamps: true });
 

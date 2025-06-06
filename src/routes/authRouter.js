@@ -8,7 +8,7 @@ const authRouter = express.Router();
 authRouter.post('/signup', async (req, res) => {
     try {
         signupValidation(req.body);
-        const { firstName, lastName, gender, age, phone, email, password } = req.body;
+        const { firstName, lastName, gender, dob, phone, email, password } = req.body;
 
         const existingUser = await User.findOne({
             $or: [
@@ -17,7 +17,7 @@ authRouter.post('/signup', async (req, res) => {
             ]
         });
         if (existingUser) {
-            res.status(400).json({ message: "user Already Exist with given Email or Phone" })
+            return res.status(400).json({ message: "user Already Exist with given Email or Phone" })
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
@@ -25,7 +25,7 @@ authRouter.post('/signup', async (req, res) => {
         const user = await User.create({
             firstName: firstName,
             lastName: lastName,
-            age: age,
+            dob: dob,
             gender: gender,
             phone: phone,
             email: email,
@@ -51,17 +51,16 @@ authRouter.post('/login', async (req, res) => {
         const { email, password } = req.body;
         const user = await User.findOne({ email: email });
         if (!user) {
-            res.status(404).json({ message: "Invalid Credential" });
+            return res.status(404).json({ message: "Invalid Credential" });
         }
         const pass = await bcrypt.compare(password, user.password);
         if (!pass) {
-            res.status(404).json({ message: "Invalid Credential" })
+            return res.status(404).json({ message: "Invalid Credential" })
         }
-
         const token = jwt.sign({ _id: user._id }, "Diwakar@123", { expiresIn: "1d" });
-        console.lof('Token', token);
+        console.log('Token', token);
         if (!token) {
-            res.status(404).json({ message: "Eror while Generating Token" });
+            return res.status(404).json({ message: "Eror while Generating Token" });
         }
 
         res.cookie('token', token, {
@@ -78,7 +77,7 @@ authRouter.post('/login', async (req, res) => {
 
 authRouter.post('/logout', async (req, res) => {
     res.cookie('token', null, { expires: new Date(Date.now()) });
-    res.status().json({ message: "user LoggedOut Successfully", user: null })
+    res.status(200).json({ message: "user LoggedOut Successfully" })
 });
 
 
