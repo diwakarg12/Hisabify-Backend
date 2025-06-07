@@ -11,36 +11,43 @@ const expenseSchema = new mongoose.Schema({
     },
     date: {
         type: String,
-        default: Date.now
+        default: () => new Date().toISOString().split('T')[0]
     },
     category: {
         type: String,
         enum: {
-            values: [""],
+            values: ["shopping", "Food & Dining", "Groceries", "Restaurants", "Education", "Travel", "Entertainment", "Health & Wellness", "Gifts & Donations", "Miscellaneous"],
             message: "${VALUE} is not a valid Category"
         },
-        default: "Others"
+        default: "Miscellaneous"
     },
     createdBy: {
         type: mongoose.Schema.ObjectId,
-        required: [true, "expense creator is Required"]
+        required: [true, "expense creator is Required"],
+        ref: "User"
     },
     createdFor: {
         type: mongoose.Schema.ObjectId,
-        required: [true, "Contributor is Required"]
+        required: [true, "Contributor is Required"],
+        ref: "User"
     },
     isPersonal: {
         type: Boolean,
-        required: [true, "IsPersonal flag is Required"]
+        default: true
     },
     groupId: {
         type: mongoose.Schema.ObjectId,
-        ref: "Group"
+        ref: "Group",
+        default: null
     },
     receiptImage: {
         type: String,
         default: ""
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    }
 
 }, { timestamps: true });
 
