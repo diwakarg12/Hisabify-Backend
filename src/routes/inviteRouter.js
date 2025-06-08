@@ -3,6 +3,7 @@ const Group = require('../models/group.model');
 const userAuth = require('../middlewares/userAuth.middleware');
 const User = require('../models/user.model');
 const Invitation = require('../models/invitation.model');
+const logEvent = require('../utils/logger');
 const inviteRouter = express.Router();
 
 inviteRouter.post('/send/:groupId', userAuth, async (req, res) => {
@@ -38,6 +39,19 @@ inviteRouter.post('/send/:groupId', userAuth, async (req, res) => {
             status: "pending"
         });
 
+        const logData = {
+            action: 'USER_INVITED_TO_GROUP',
+            description: "User has been invited to Group Successfully",
+            performedBy: loggedInUser._id,
+            targetUser: user._id,
+            group: userInGroup.groupName,
+            meta: {
+                Name: user.firstName + " " + user.lastName,
+                email: user.email
+            },
+        };
+        await logEvent(logData);
+
         res.status(200).json({ message: `You have Invited ${user.firstName} successfully!`, invitation: invite })
 
     } catch (error) {
@@ -70,7 +84,7 @@ inviteRouter.get('/view', userAuth, async (req, res) => {
 
 inviteRouter.post('/review/:status/:groupId', userAuth, async (req, res) => {
     try {
- 
+
         const loggedInUser = req.user;
         if (!loggedInUser) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
@@ -92,10 +106,26 @@ inviteRouter.post('/review/:status/:groupId', userAuth, async (req, res) => {
             await invitation.save();
 
             const group = await Group.findByIdAndUpdate(groupId, { $addToSet: { members: loggedInUser._id } })
+
         } else {
             invitation.status = status;
             await invitation.save();
         }
+
+        const logData = {
+            action: status == "accepted" ? "USER_ACCEPTED_GROUP_INVITATION" : "USER_REJECTED_GROUP_INVITATION",
+            description: `User has ${status} Group Invitation`,
+            performedBy: loggedInUser._id,
+            targetUser: loggedInUser._id,
+            group: group.groupName,
+            meta: {
+                invitation: invitation._id,
+                invitedBy: invitation.invitedBy,
+                invitedTo: invitation.invitedTo,
+                status: status
+            },
+        };
+        await logEvent(logData);
 
         res.status(200).json({ message: `You have ${status} the Invitation of Group ${group.groupName}` })
 

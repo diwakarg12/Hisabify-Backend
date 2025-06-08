@@ -4,7 +4,7 @@ const { logValidation } = require('./apiValidation');
 const logEvent = async (logData) => {
     try {
         logValidation(logData)
-        const { action, description, meta, performedBy, targetUser, group, expense } = logData;
+        const { action, description, meta, performedBy, targetUser = null, group = null, expense = null } = logData;
         const log = await Log.crete({
             action: action,
             description: description,
@@ -19,4 +19,6 @@ const logEvent = async (logData) => {
     } catch (error) {
         throw new Error("Error: ", error.message);
     }
-}
+};
+
+module.exports = logEvent;

@@ -3,6 +3,8 @@ const User = require('../models/user.model');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { signupValidation, loginValidation } = require('../utils/apiValidation');
+const logEvent = require('../utils/logger')
+const userAuth = require('../middlewares/userAuth.middleware')
 const authRouter = express.Router();
 
 authRouter.post('/signup', async (req, res) => {
@@ -38,6 +40,17 @@ authRouter.post('/signup', async (req, res) => {
             res.status(401).json({ message: "Erro while Generating token," })
         }
         res.cookie('token', token)
+        const logData = {
+            action: 'USER_SIGNUP',
+            description: "User signed up successfully",
+            performedBy: user._id,
+            meta: {
+                Name: user.firstName + " " + user.lastName,
+                email: user.email
+            },
+        };
+        await logEvent(logData)
+
         res.status(200).json({ message: "User Created successfully", user: user })
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error.message });
@@ -68,6 +81,17 @@ authRouter.post('/login', async (req, res) => {
             sameSite: "strict"
         });
 
+        const logData = {
+            action: 'USER_LOGIN',
+            description: "User Logged in successfully",
+            performedBy: user._id,
+            meta: {
+                Name: user.firstName + " " + user.lastName,
+                email: user.email
+            },
+        };
+        await logEvent(logData)
+
         res.status(200).json({ message: "Login Successfull", user: user })
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error })
@@ -75,8 +99,24 @@ authRouter.post('/login', async (req, res) => {
 });
 
 
-authRouter.post('/logout', async (req, res) => {
+authRouter.post('/logout', userAuth, async (req, res) => {
+    const loggedInUser = req.user;
+    if (!loggedInUser) {
+        return res.status(401).json({ message: "You are not Authorized, Please login" })
+    }
+
     res.cookie('token', null, { expires: new Date(Date.now()) });
+    const logData = {
+        action: 'USER_lOGGED_OUT',
+        description: "User Logged Out successfully",
+        performedBy: loggedInUser._id,
+        meta: {
+            Name: loggedInUser.firstName + " " + loggedInUser.lastName,
+            email: loggedInUser.email
+        },
+    };
+    await logEvent(logData)
+
     res.status(200).json({ message: "user LoggedOut Successfully" })
 });
 
