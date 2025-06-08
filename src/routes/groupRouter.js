@@ -1,10 +1,8 @@
 const express = require('express');
 const Group = require('../models/group.model');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 const userAuth = require('../middlewares/userAuth.middleware');
 const User = require('../models/user.model');
-const Invitation = require('../models/invitation.model');
+const logEvent = require('../utils/logger');
 const groupRouter = express.Router();
 
 groupRouter.post('/create', userAuth, async (req, res) => {
@@ -27,6 +25,17 @@ groupRouter.post('/create', userAuth, async (req, res) => {
             createdBy: user._id,
             members: [user._id]
         });
+
+        const logData = {
+            action: 'GROUP_CREATED',
+            description: 'Group created successfully',
+            performedBy: loggedInUser._id,
+            group: group._id,
+            meta: {
+                groupName: group.groupName,
+            },
+        };
+        await logEvent(logData)
 
         res.status(200).json({ message: "Group Created Successfully", group: group })
 
@@ -77,7 +86,7 @@ groupRouter.post('/remove-user/:groupId/:userId', userAuth, async (req, res) => 
 
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json({ message: "No user Found" });
+            return res.status(404).json({ message: "This user is not Found in this Group" });
         }
 
         if (user._id.toString() === group.createdBy.toString()) {
@@ -86,6 +95,20 @@ groupRouter.post('/remove-user/:groupId/:userId', userAuth, async (req, res) => 
 
         group.members = group.members.filter(member => member.toString() !== user._id.toString());
         await group.save();
+
+        const logData = {
+            action: 'USER_REMOVED_FROM_GROUP',
+            description: 'User removed from Group successfully',
+            performedBy: loggedInUser._id,
+            targetUser: user._id,
+            group: group._id,
+            meta: {
+                groupName: group.groupName,
+                removedUser: user.firstName + " " + user.lastName,
+                removedUserEmail: user.email
+            },
+        };
+        await logEvent(logData)
 
         res.status(200).json({ message: `${user.firstName} has been removed`, group: group })
     } catch (error) {
@@ -120,6 +143,17 @@ groupRouter.post('/delete/:groupId', userAuth, async (req, res) => {
             group.members = group.members.filter(member => member.toString() !== loggedInUser._id.toString());
             await group.save();
         }
+
+        const logData = {
+            action: 'GROUP_DELETED',
+            description: 'Group deleted successfully',
+            performedBy: loggedInUser._id,
+            group: group._id,
+            meta: {
+                groupName: group.groupName,
+            },
+        };
+        await logEvent(logData)
 
         res.status(200).json({ message: `${group.createdBy.equals(loggedInUser._id)} ?Group Deleted Successfully! : You left the group`, group: group });
 
