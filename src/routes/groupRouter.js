@@ -49,7 +49,7 @@ groupRouter.get('/view', userAuth, async (req, res) => {
 
         const loggedInUser = req.user;
         if (!loggedInUser) {
-            return res.status(401).json({ message: "You are not Authorized, Please Login" })
+            return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
         const groups = await Group.find({ members: loggedInUser._id })
@@ -58,9 +58,45 @@ groupRouter.get('/view', userAuth, async (req, res) => {
 
         res.status(200).json({ message: `You are Added in ${groups.length} Groups`, groups: groups })
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message })
+        res.status(500).json({ message: "Error: ", error: error.message });
     }
 });
+
+groupRouter.post('/update/:groupId', userAuth, async (req, res) => {
+    try {
+
+        const loggedInUser = req.user;
+        const { groupId } = req.params;
+        const { groupName } = req.body;
+        if (!loggedInUser || !loggedInUser.Id) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" });
+        }
+
+        const group = await Group.findById(groupId);
+        if (!group || group.isDeleted) {
+            return res.status(404).json({ message: "NO Group Found" });
+        }
+
+        group.groupName == groupName
+        await group.save();
+
+        const logData = {
+            action: 'GROUP_UPDATED',
+            description: 'Group updated successfully',
+            performedBy: loggedInUser._id,
+            group: group._id,
+            meta: {
+                updatedGroupName: group.groupName
+            },
+        };
+        await logEvent(logData)
+
+        res.status(200).json({ message: "Group updated Successfully", group: group })
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error.message });
+    }
+})
 
 groupRouter.post('/remove-user/:groupId/:userId', userAuth, async (req, res) => {
     try {
@@ -73,7 +109,7 @@ groupRouter.post('/remove-user/:groupId/:userId', userAuth, async (req, res) => 
 
         const group = await Group.findOne({ _id: groupId, isDeleted: false });
         if (!group || group.isDeleted) {
-            return res.status(404).json({ message: "NO Group Found" })
+            return res.status(404).json({ message: "NO Group Found" });
         }
 
         if (!group.members.includes(userId)) {

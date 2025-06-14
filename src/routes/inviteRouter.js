@@ -59,7 +59,7 @@ inviteRouter.post('/send/:groupId', userAuth, async (req, res) => {
     }
 });
 
-inviteRouter.get('/view', userAuth, async (req, res) => {
+inviteRouter.get('/view/received-request', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
@@ -67,15 +67,39 @@ inviteRouter.get('/view', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please login" })
         }
 
-        const invitations = await Invitation.find({ invitedTo: loggedInUser._id, status: 'pending' })
+        const receivedInvitations = await Invitation.find({ invitedTo: loggedInUser._id, status: 'pending' })
             .populate('groupId', "groupName")
             .populate('invitedBy', "firstName lastName email");
 
-        if (!invitations) {
+        if (!receivedInvitations) {
             return res.status(404).json({ message: "You haven't received any request" })
         }
 
-        res.status(200).json({ message: `You have Received ${invitations.length} invitations`, invitations: invitations });
+        res.status(200).json({ message: `You have Received ${receivedInvitations.length} invitations`, receivedInvitations: receivedInvitations });
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error })
+    }
+});
+
+inviteRouter.get('/view/sent-request/:groupId', userAuth, async (req, res) => {
+    try {
+
+        const loggedInUser = req.user;
+        const { groupId } = req.params;
+        if (!loggedInUser) {
+            return res.status(401).json({ message: "You are not Authorized, Please login" })
+        }
+
+        const sentInvitations = await Invitation.find({ groupId: groupId, status: 'pending' })
+            .populate('groupId', "groupName")
+            .populate('invitedTo', "firstName lastName email");
+
+        if (!receivedInvitations) {
+            return res.status(404).json({ message: "You haven't sent any request" })
+        }
+
+        res.status(200).json({ message: `You have Received ${sentInvitations.length} invitations`, sentInvitations: sentInvitations });
 
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error })
