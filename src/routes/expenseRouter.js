@@ -7,6 +7,7 @@ const { addExpenseValidation } = require('../utils/apiValidation');
 const cloudinary = require('../config/cloudinary');
 const { updateExpense } = require('../utils/updateExpense');
 const logEvent = require('../utils/logger');
+const User = require('../models/user.model');
 
 const expenseRouter = express.Router();
 
@@ -172,3 +173,36 @@ expenseRouter.post('/delete/:expenseId', userAuth, async (req, res) => {
         res.status(500).json({ message: "Error: ", error: error })
     }
 });
+
+expenseRouter.get('/getAllExpense/:groupId?', userAuth, async (req, res) => {
+    try {
+
+        const loggedInUser = req.user;
+        const { groupId } = req.params;
+        if (!loggedInUser || !loggedInUser._id) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" })
+        }
+        if (groupId) {
+            const group = await Group.findById(groupId);
+            if (!group || !group.members.some(member => member.toString() === loggedInUser._id.toString())) {
+                return res.status(404).json({ message: "Invalid GroupId" })
+            }
+            const groupExpense = await Expense.find({ groupId: group._id, isPersonal: false });
+            if (!groupExpense || groupExpense.length == 0) {
+                return res.status(404).json({ message: "No Expense Found in this Group" })
+            }
+
+            res.status(200).json({ message: `Your Group ${group.groupName} has ${groupExpense.length} Expenses`, expense: groupExpense });
+        } else {
+            const personalExpense = await Expense.find({ createdFor: loggedInUser._id, isPersonal: true });
+            if (!personalExpense || personalExpense.length == 0) {
+                return res.status(404).json({ message: "You have not added Any Expense" })
+            }
+
+            res.status(200).json({ message: `You have ${personalExpense.length} in your expense list`, expense: personalExpense })
+        }
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error })
+    }
+})

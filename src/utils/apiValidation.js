@@ -3,22 +3,22 @@ const mongoose = require('mongoose');
 
 
 const isValidDOB = (dob) => {
-    if (dob && validator.isDate(dob, { format: 'YYYY-MM-DD', strictMode: true })) {
-        const dobDate = new Date(dob);
-        const today = new Date();
-        const age = (today - dobDate) / (1000 * 60 * 60 * 24 * 365.25)
-        if (dobDate > today) {
-            throw new Error("invalid DOB 1");
-        } else if (age < 16 || age > 80) {
-            throw new Error("You are not Eligible");
-        }
-    } else {
-        throw new Error("Invalid DOB 2");
+    if (!(dob instanceof Date)) {
+        throw new Error("Invalid Date of Birth. Must be a valid Date object.");
+    }
+    const today = new Date();
+    if (dob > today) {
+        throw new Error("Date of Birth cannot be in the future.");
+    }
+    const age = (today - dob) / (1000 * 60 * 60 * 24 * 365.25); // approx years
+    if (age < 16 || age > 80) {
+        throw new Error("You must be between 16 and 80 years old.");
     }
 };
 
 const signupValidation = (data) => {
     const { firstName, lastName, email, phone, gender, dob, password } = data;
+    const parsedDob = new Date(dob);
     const allowedGender = ["male", "female", "other"];
 
     if (!validator.isLength(firstName, { min: 3, max: 20 })) {
@@ -33,14 +33,16 @@ const signupValidation = (data) => {
         throw new Error("Invalid Gender");
     } else if (!validator.isStrongPassword(password)) {
         throw new Error("Password is not Strong");
-    } else if (dob) {
-        isValidDOB(dob);
+    } else if (parsedDob) {
+        isValidDOB(parsedDob);
     }
 };
 
 const loginValidation = (data) => {
-    if (!validator.isEmail(data.email)) {
-        throw new Error("Invalid Email");
+    const isEmail = validator.isEmail(data.email);
+    const isPhone = validator.isMobilePhone(data.email, 'any');
+    if (!isEmail && !isPhone) {
+        throw new Error("Enter a valid email or phone number");
     } else if (!validator.isStrongPassword(data.password)) {
         throw new Error("Please check password again");
     }
@@ -121,7 +123,7 @@ const addExpenseValidation = (data) => {
 };
 
 const logValidation = (data) => {
-    const { action, description, meta, performedBy, targetUser, group, expense } = logData;
+    const { action, description, meta, performedBy, targetUser, group, expense } = data;
 
     if (action && !validator.isLength(action, { min: 3 })) {
         throw new Error("Action should a string and should more than 3 character");

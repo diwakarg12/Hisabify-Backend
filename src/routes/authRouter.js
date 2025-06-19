@@ -11,6 +11,7 @@ authRouter.post('/signup', async (req, res) => {
     try {
         signupValidation(req.body);
         const { firstName, lastName, gender, dob, phone, email, password } = req.body;
+        const parsedDate = new Date(dob);
 
         const existingUser = await User.findOne({
             $or: [
@@ -27,7 +28,7 @@ authRouter.post('/signup', async (req, res) => {
         const user = await User.create({
             firstName: firstName,
             lastName: lastName,
-            dob: dob,
+            dob: parsedDate,
             gender: gender,
             phone: phone,
             email: email,
@@ -53,6 +54,7 @@ authRouter.post('/signup', async (req, res) => {
 
         res.status(200).json({ message: "User Created successfully", user: user })
     } catch (error) {
+        console.log('Error', error)
         res.status(500).json({ message: "Error: ", error: error.message });
     }
 });
@@ -62,13 +64,18 @@ authRouter.post('/login', async (req, res) => {
     try {
         loginValidation(req.body);
         const { email, password } = req.body;
-        const user = await User.findOne({ email: email });
+        const user = await User.findOne({
+            $or: [
+                { email: email },
+                { phone: email }
+            ]
+        });
         if (!user) {
-            return res.status(404).json({ message: "Invalid Credential" });
+            return res.status(404).json({ error: "Invalid Credential" });
         }
         const pass = await bcrypt.compare(password, user.password);
         if (!pass) {
-            return res.status(404).json({ message: "Invalid Credential" })
+            return res.status(404).json({ error: "Invalid Credential" })
         }
         const token = jwt.sign({ _id: user._id }, "Diwakar@123", { expiresIn: "1d" });
         console.log('Token', token);
@@ -94,7 +101,7 @@ authRouter.post('/login', async (req, res) => {
 
         res.status(200).json({ message: "Login Successfull", user: user })
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error })
+        res.status(500).json({ message: "Error: ", error: error.message })
     }
 });
 
@@ -117,7 +124,7 @@ authRouter.post('/logout', userAuth, async (req, res) => {
     };
     await logEvent(logData)
 
-    res.status(200).json({ message: "user LoggedOut Successfully" })
+    res.status(200).json({ message: "user LoggedOut Successfully", user: null })
 });
 
 

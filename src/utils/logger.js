@@ -1,11 +1,12 @@
 const Log = require('../models/log.model');
 const { logValidation } = require('./apiValidation');
 
-const logEvent = async (logData) => {
+const logEvent = async (data) => {
     try {
-        logValidation(logData)
-        const { action, description, meta, performedBy, targetUser = null, group = null, expense = null } = logData;
-        const log = await Log.crete({
+        console.log('Log', data)
+        logValidation(data)
+        const { action, description, meta, performedBy, targetUser = null, group = null, expense = null } = data;
+        const log = await Log.create({
             action: action,
             description: description,
             meta: meta,
@@ -16,8 +17,9 @@ const logEvent = async (logData) => {
         })
 
         console.log('Log has been created', log)
+        
     } catch (error) {
-        throw new Error("Error: ", error.message);
+        throw new Error("Log Event Failed: " + error.message);
     }
 };
 
