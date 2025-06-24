@@ -77,7 +77,7 @@ authRouter.post('/login', async (req, res) => {
         if (!pass) {
             return res.status(404).json({ error: "Invalid Credential" })
         }
-        const token = jwt.sign({ _id: user._id }, "Diwakar@123", { expiresIn: "1d" });
+        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
         console.log('Token', token);
         if (!token) {
             return res.status(404).json({ message: "Eror while Generating Token" });
@@ -85,7 +85,8 @@ authRouter.post('/login', async (req, res) => {
 
         res.cookie('token', token, {
             httpOnly: true,
-            sameSite: "strict"
+            sameSite: "strict",
+            secure: false,
         });
 
         const logData = {
@@ -125,6 +126,10 @@ authRouter.post('/logout', userAuth, async (req, res) => {
     await logEvent(logData)
 
     res.status(200).json({ message: "user LoggedOut Successfully", user: null })
+});
+
+authRouter.get('/check', userAuth, (req, res) => {
+    res.status(200).json({ authenticated: true, user: req.user });
 });
 
 
