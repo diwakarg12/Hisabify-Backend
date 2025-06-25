@@ -95,7 +95,7 @@ inviteRouter.get('/view/sent-request/:groupId', userAuth, async (req, res) => {
             .populate('groupId', "groupName")
             .populate('invitedTo', "firstName lastName email");
 
-        if (!receivedInvitations) {
+        if (!sentInvitations || sentInvitations.length === 0) {
             return res.status(404).json({ message: "You haven't sent any request" })
         }
 
@@ -106,7 +106,7 @@ inviteRouter.get('/view/sent-request/:groupId', userAuth, async (req, res) => {
     }
 });
 
-inviteRouter.post('/review/:status/:groupId', userAuth, async (req, res) => {
+inviteRouter.post('/review/:status/:requestId/:groupId', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
@@ -114,22 +114,22 @@ inviteRouter.post('/review/:status/:groupId', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
         }
 
-        const { status, groupId } = req.params;
-        const group = await Group.findById(groupId);
-        if (!group) {
-            return res.status(404).json({ message: "No group found" });
+        const { status, requestId, groupId } = req.params;
+        const invitation = await Invitation.findById(requestId);
+        if (!invitation) {
+            return res.status(404).json({ message: "No Invitation found" });
         }
 
-        const invitation = await Invitation.findOne({ groupId: groupId, status: "pending" });
-        if (!invitation) {
-            res.status(404).json({ message: "No invitation Found" });
+        const group = await Group.findById(groupId);
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
         }
 
         if (status === 'accepted') {
             invitation.status = status;
             await invitation.save();
 
-            const group = await Group.findByIdAndUpdate(groupId, { $addToSet: { members: loggedInUser._id } })
+            await Group.findByIdAndUpdate(groupId, { $addToSet: { members: loggedInUser._id } });
 
         } else {
             invitation.status = status;
