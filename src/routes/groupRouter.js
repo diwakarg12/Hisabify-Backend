@@ -9,7 +9,7 @@ groupRouter.post('/create', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
-        const { groupName } = req.body;
+        const { groupName, description, members } = req.body;
 
         const user = await User.findById(loggedInUser._id);
         if (!user) {
@@ -22,9 +22,11 @@ groupRouter.post('/create', userAuth, async (req, res) => {
         };
         const group = await Group.create({
             groupName: groupName,
+            description: description,
             createdBy: user._id,
-            members: [user._id]
+            members: [...members, user._id]
         });
+        console.log('Group', group);
 
         const logData = {
             action: 'GROUP_CREATED',

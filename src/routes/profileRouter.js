@@ -10,8 +10,8 @@ profileRouter.get('/view', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
-        if (!loggedInUser) {
-            return res.status(404).json({ message: "Please login to access the page" })
+        if (!loggedInUser || !loggedInUser._id) {
+            return res.status(404).json({ message: "You are not Authorized, Please login" })
         }
 
         const user = await User.findById(loggedInUser._id);
@@ -21,18 +21,39 @@ profileRouter.get('/view', userAuth, async (req, res) => {
 
         res.status(200).json({ message: `${user.firstName}, Here is your Profile `, user: user })
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error })
+        res.status(500).json({ message: "Error: ", error: error.message });
     }
 });
 
-profileRouter.post('/update', userAuth, async (req, res) => {
+profileRouter.get('/user', userAuth, async (req, res) => {
+    try {
+
+        const loggedInUser = req.user;
+        const { email } = req.body;
+        if (!loggedInUser || !loggedInUser._id) {
+            return res.status(401).json({ message: 'You are not Authorized, Please login' })
+        }
+
+        const user = await User.findOne({ email: email });
+        if (!user) {
+            return res.status(404).json({ message: 'No user found with the given email' })
+        }
+
+        res.status(200).json({ message: "User Found ", user: user })
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error.message });
+    }
+})
+
+profileRouter.patch('/update', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
         const { profile } = req.body
         updateProfileValidation(req.body)
         if (!loggedInUser || !loggedInUser._id) {
-            return res.status(404).json({ message: "Please login to access the page" })
+            return res.status(404).json({ message: "You are not Authorized, Please login" })
         }
         console.log('url', profile)
         if (profile && profile.startsWith("data:image")) {
@@ -77,7 +98,7 @@ profileRouter.post('/update', userAuth, async (req, res) => {
     }
 });
 
-profileRouter.post('/delete', userAuth, async (req, res) => {
+profileRouter.delete('/delete', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
@@ -101,11 +122,53 @@ profileRouter.post('/delete', userAuth, async (req, res) => {
                 email: loggedInUser.email
             },
         };
-        res.status(200).json({ message: "Your Account is Deleted and Data has been removed form the Database", user: user })
+        res.status(200).json({ message: "Your Account is Deleted and Data has been removed form the Database", user: null })
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error });
+        res.status(500).json({ message: "Error: ", error: error.message });
     }
 });
+
+profileRouter.patch('/update-email', userAuth, async (req, res) => {
+    try {
+        const loggedInUser = req.user;
+        const { email } = req.body;
+        if (!loggedInUser || !loggedInUser._id) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" })
+        }
+
+        const user = await User.findByIdAndUpdate(
+            loggedInUser._id,
+            { email: email },
+            { new: true }
+        );
+
+        res.status(200).json({ message: 'Email Updated successfully!', user: user })
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error.message });
+    }
+});
+
+profileRouter.patch('/update-phone', userAuth, async (req, res) => {
+    try {
+        const loggedInUser = req.user;
+        const { phone } = req.body;
+        if (!loggedInUser || !loggedInUser._id) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" })
+        }
+
+        const user = await User.findByIdAndUpdate(
+            loggedInUser._id,
+            { phone: phone },
+            { new: true }
+        );
+
+        res.status(200).json({ message: 'Phone Updated successfully!', user: user })
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error.message });
+    }
+})
 
 module.exports = profileRouter;

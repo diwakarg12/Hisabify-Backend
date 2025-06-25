@@ -3,9 +3,12 @@ const mongoose = require('mongoose');
 const groupSchema = new mongoose.Schema({
     groupName: {
         type: String,
-        require: [true, "Group name is Required"]
+        required: [true, "Group name is Required"]
     },
-
+    description: {
+        type: String,
+        required: [true, 'Group Description is Required']
+    },
     createdBy: {
         type: mongoose.Schema.ObjectId,
         required: true,
