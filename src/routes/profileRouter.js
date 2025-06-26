@@ -25,21 +25,23 @@ profileRouter.get('/view', userAuth, async (req, res) => {
     }
 });
 
-profileRouter.get('/user', userAuth, async (req, res) => {
+profileRouter.get('/user/:email', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
-        const { email } = req.body;
+        const { email } = req.params;
         if (!loggedInUser || !loggedInUser._id) {
             return res.status(401).json({ message: 'You are not Authorized, Please login' })
         }
 
-        const user = await User.findOne({ email: email });
-        if (!user) {
-            return res.status(404).json({ message: 'No user found with the given email' })
+        const users = await User.find({
+            email: { $regex: email, $options: 'i' }
+        });
+        if (!users || users.length === 0) {
+            return res.status(404).json({ message: 'No users found with matching email' });
         }
 
-        res.status(200).json({ message: "User Found ", user: user })
+        res.status(200).json({ message: `You got ${users.length} users`, users: users })
 
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error.message });
