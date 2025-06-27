@@ -3,18 +3,23 @@ const mongoose = require('mongoose');
 
 
 const isValidDOB = (dob) => {
-    if (!(dob instanceof Date)) {
+    const dobDate = dob instanceof Date ? dob : new Date(dob);
+
+    if (isNaN(dobDate.getTime())) {
         throw new Error("Invalid Date of Birth. Must be a valid Date object.");
     }
+
     const today = new Date();
-    if (dob > today) {
+    if (dobDate > today) {
         throw new Error("Date of Birth cannot be in the future.");
     }
-    const age = (today - dob) / (1000 * 60 * 60 * 24 * 365.25); // approx years
+
+    const age = (today - dobDate) / (1000 * 60 * 60 * 24 * 365.25);
     if (age < 16 || age > 80) {
         throw new Error("You must be between 16 and 80 years old.");
     }
 };
+
 
 const signupValidation = (data) => {
     const { firstName, lastName, email, phone, gender, dob, password } = data;
@@ -57,10 +62,18 @@ const updatePasswordValidation = (data) => {
 };
 
 const isValidImageUrlOrBase64 = (str) => {
-    const isImageUrl = validator.isURL(str, { require_protocol: true }) && /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(str);
-    const isBase64 = /^data:image\/(png|jpeg|jpg|gif|bmp|webp);base64,/i.test(str);
+    const imageExtensions = [
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'avif', 'ico', 'tiff', 'tif', 'heic', 'heif', 'jfif', 'pjpeg', 'pjp', 'raw', 'eps'
+    ];
+
+    const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`, 'i');
+    const isImageUrl = validator.isURL(str, { require_protocol: true }) && imageRegex.test(str);
+
+    const base64Regex = /^data:image\/(jpg|jpeg|png|gif|bmp|webp|svg|avif|ico|tiff|tif|heic|heif|jfif|pjpeg|pjp|raw|eps);base64,/i;
+    const isBase64 = base64Regex.test(str);
+
     return isImageUrl || isBase64;
-}
+};
 
 const updateProfileValidation = (data) => {
     const updatable = ["firstName", "lastName", "dob", "gender", "occupation", "income", "profile"];

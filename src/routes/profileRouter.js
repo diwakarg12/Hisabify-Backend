@@ -3,7 +3,8 @@ const User = require('../models/user.model');
 const userAuth = require('../middlewares/userAuth.middleware');
 const { updateProfileValidation } = require('../utils/apiValidation');
 const logEvent = require('../utils/logger');
-const cloudinary = require('../config/cloudinary')
+const cloudinary = require('../config/cloudinary');
+const validator = require('validator');
 
 const profileRouter = express.Router();
 profileRouter.get('/view', userAuth, async (req, res) => {
@@ -139,6 +140,14 @@ profileRouter.patch('/update-email', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
         }
 
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({ message: "Invalid Email" })
+        }
+        const existingUser = await User.findOne({ email: email });
+        if (existingUser) {
+            return res.status(409).json({ message: "User already exist with this email id" })
+        }
+
         const user = await User.findByIdAndUpdate(
             loggedInUser._id,
             { email: email },
@@ -158,6 +167,15 @@ profileRouter.patch('/update-phone', userAuth, async (req, res) => {
         const { phone } = req.body;
         if (!loggedInUser || !loggedInUser._id) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
+        }
+
+        if (!validator.isMobilePhone(phone)) {
+            return res.status(400).json({ message: "Invalid Phone" })
+        }
+
+        const existingUser = await User.findOne({ phone: phone });
+        if (existingUser) {
+            return res.status(409).json({ message: "User already exist with this phone" })
         }
 
         const user = await User.findByIdAndUpdate(
