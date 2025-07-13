@@ -13,12 +13,12 @@ groupRouter.post('/create', userAuth, async (req, res) => {
 
         const user = await User.findById(loggedInUser._id);
         if (!user) {
-            return res.status(404).json({ message: "user is not Authorized, please Login First" })
+            return res.status(401).json({ message: "user is not Authorized, please Login First" })
         }
 
         const existingGroup = await Group.findOne({ groupName: groupName, isDeleted: false });
         if (existingGroup) {
-            return res.status(401).json({ message: "Group Already Exists, please use another name" });
+            return res.status(409).json({ message: "Group Already Exists, please use another name" });
         };
         const group = await Group.create({
             groupName: groupName,

@@ -38,7 +38,7 @@ authRouter.post('/signup', async (req, res) => {
         const token = jwt.sign({ _id: user._id }, "Diwakar@123", { expiresIn: "1d" })
         console.log('Token', token);
         if (!token) {
-            res.status(401).json({ message: "Erro while Generating token," })
+            return res.status(401).json({ message: "Erro while Generating token," })
         }
         res.cookie('token', token)
         const logData = {
