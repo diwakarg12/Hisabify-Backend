@@ -39,8 +39,32 @@ groupRouter.post('/create', userAuth, async (req, res) => {
         };
         await logEvent(logData)
 
-        res.status(200).json({ message: "Group Created Successfully", group: group })
+        res.status(200).json({ message: "Group Created Successfully", group })
 
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error.message });
+    }
+});
+
+groupRouter.get('/searchUser/:email', userAuth, async (req, res) => {
+    try {
+        const loggedInUser = req.user;
+        const { email } = req.params;
+
+        if (!loggedInUser) {
+            return res.status(401).json({ message: "You are not authorized, please login", });
+        }
+
+        const user = await User.findOne({ email }).select(
+            "_id firstName lastName email phone gender profile"
+        );
+        if (!user) {
+            return res.status(404).json({
+                message: "No user found with this email",
+            });
+        }
+
+        res.status(200).json({ message: `user getting successfully`, user });
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error.message });
     }
@@ -54,9 +78,11 @@ groupRouter.get('/view', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
-        const groups = await Group.find({ members: loggedInUser._id })
-            .populate('createdBy', 'firstName lastName email')
-            .populate('members', 'firstName lastName email');
+        const groups = await Group.find({ members: loggedInUser._id, isDeleted: false })
+            .populate('createdBy', 'firstName lastName email profile')
+            .populate('members', 'firstName lastName email profile');
+
+        console.log('Groups', groups);
 
         res.status(200).json({ message: `You are Added in ${groups.length} Groups`, groups: groups })
     } catch (error) {
@@ -69,7 +95,7 @@ groupRouter.post('/update/:groupId', userAuth, async (req, res) => {
 
         const loggedInUser = req.user;
         const { groupId } = req.params;
-        const { groupName } = req.body;
+        const { groupName, description } = req.body;
         if (!loggedInUser || !loggedInUser.Id) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
@@ -79,7 +105,8 @@ groupRouter.post('/update/:groupId', userAuth, async (req, res) => {
             return res.status(404).json({ message: "NO Group Found" });
         }
 
-        group.groupName == groupName
+        group.groupName = groupName
+        group.description = description
         await group.save();
 
         const logData = {

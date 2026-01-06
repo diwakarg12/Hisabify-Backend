@@ -11,12 +11,14 @@ const PORT = process.env.PORT || 3000;
 dotenv.config();
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(cors({
     origin: process.env.CLIENT_URL,
     credentials: true
 }))
+
+console.log('Test', process.env.CLIENT_URL);
 
 
 app.use('/auth', authRouter);

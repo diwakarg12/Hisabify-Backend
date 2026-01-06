@@ -20,7 +20,7 @@ authRouter.post('/signup', async (req, res) => {
             ]
         });
         if (existingUser) {
-            return res.status(400).json({ message: "user Already Exist with given Email or Phone" })
+            throw new Error('user Already Exist with given Email or Phone')
         }
 
         const passwordHash = await bcrypt.hash(password, 10);

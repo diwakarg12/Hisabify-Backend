@@ -149,7 +149,7 @@ const logValidation = (data) => {
     } else if (targetUser && !mongoose.isValidObjectId(targetUser)) {
         throw new Error("targetUser is not Valid ObjectId");
     } else if (group && !mongoose.isValidObjectId(group)) {
-        throw new Error("Group us ot a valid ObjectId");
+        throw new Error("Group is not a valid ObjectId");
     } else if (expense && !mongoose.isValidObjectId(expense)) {
         throw new Error("Expense is not a valid ObjectId");
     }

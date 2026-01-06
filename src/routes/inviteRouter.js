@@ -12,39 +12,52 @@ inviteRouter.post('/send/:groupId', userAuth, async (req, res) => {
         const loggedInUser = req.user;
         const { groupId } = req.params;
         const { invitedTo } = req.body;
+        console.log('LogedInUser', req.user._id)
 
         if (!loggedInUser) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
         }
 
-        const user = await User.findOne({ email: invitedTo });
+        const group = await Group.findOne({ _id: groupId, isDeleted: false });
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" })
+        }
+
+        if (String(group.createdBy) !== String(loggedInUser._id)) {
+            return res.status(403).json({
+                message: "Only group creator can invite users",
+            });
+        }
+
+        const user = await User.findById(invitedTo);
         if (!user) {
             return res.status(404).json({ message: "No User Found" });
         }
 
-        const userInGroup = await Group.findOne({ _id: groupId, members: user._id });
-        if (userInGroup) {
-            return res.status(400).json({ message: "User Already present in the Group" })
+        if (group.members.includes(user._id)) {
+            return res.status(400).json({ message: "User already present in the group" })
+            // throw new Error("User already present in the group");
         }
 
-        const existingInvitation = await Invitation.findOne({ groupId: groupId, invitedTo: user._id });
+        const existingInvitation = await Invitation.findOne({ groupId: groupId, invitedTo: invitedTo, status: "pending" });
         if (existingInvitation) {
             return res.status(400).json({ message: "User Already Invited" })
         }
 
         const invite = await Invitation.create({
             groupId: groupId,
-            invitedBy: loggedInUser._id,
-            invitedTo: user._id,
+            invitedBy: req.user._id,
+            invitedTo: invitedTo,
             status: "pending"
         });
+        console.log('Invite', invite)
 
         const logData = {
             action: 'USER_INVITED_TO_GROUP',
             description: "User has been invited to Group Successfully",
             performedBy: loggedInUser._id,
             targetUser: user._id,
-            group: userInGroup.groupName,
+            group: group._id,
             meta: {
                 Name: user.firstName + " " + user.lastName,
                 email: user.email
@@ -93,7 +106,7 @@ inviteRouter.get('/view/sent-request/:groupId', userAuth, async (req, res) => {
 
         const sentInvitations = await Invitation.find({ groupId: groupId, status: 'pending' })
             .populate('groupId', "groupName")
-            .populate('invitedTo', "firstName lastName email");
+            .populate('invitedTo', "firstName lastName email profile");
 
         if (!sentInvitations || sentInvitations.length === 0) {
             return res.status(404).json({ message: "You haven't sent any request" })
