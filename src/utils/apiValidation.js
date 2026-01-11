@@ -107,14 +107,12 @@ const addExpenseValidation = (data) => {
     const validCaterogies = ["shopping", "Food & Dining", "Groceries", "Restaurants", "Education", "Travel", "Entertainment", "Health & Wellness", "Gifts & Donations", "Miscellaneous"];
     if (amount && !validator.isNumeric(amount) && !validator.isInt(amount.toString(), { min: 0, max: 999999999 })) {
         throw new Error("Amount is Invalid, Please Enter Valid Amount");
-    } else if (description && !validator.isLength(description, { min: 10, max: 999999 })) {
+    } else if (description && !validator.isLength(description, { min: 5, max: 999999 })) {
         throw new Error("Description is should between 10 to 999999 characters");
     } else if (category && !validCaterogies.includes(category)) {
         throw new Error("Invalid Category, Please Select valid Category");
     } else if (createdFor && !mongoose.Types.ObjectId.isValid(createdFor)) {
         throw new Error("Invalid CreatedFor userId");
-    } else if (!validator.isBoolean(isPersonal)) {
-        throw new Error("isPersonal is Invalid");
     } else if (groupId && !mongoose.Types.ObjectId.isValid(groupId)) {
         throw new Error("Invalid GroupId");
     } else if (receiptImage) {
@@ -123,7 +121,7 @@ const addExpenseValidation = (data) => {
         };
     } else if (date) {
         if (validator.isDate(date, { format: 'YYYY-MM-DD', strictMode: true })) {
-            const newDate = new Date(date);
+            const newDate = new Date(date + "T00:00:00");
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             if (newDate > today) {

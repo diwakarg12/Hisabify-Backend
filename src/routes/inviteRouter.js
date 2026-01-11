@@ -154,7 +154,7 @@ inviteRouter.post('/review/:status/:requestId/:groupId', userAuth, async (req, r
             description: `User has ${status} Group Invitation`,
             performedBy: loggedInUser._id,
             targetUser: loggedInUser._id,
-            group: group.groupName,
+            group: group._id,
             meta: {
                 invitation: invitation._id,
                 invitedBy: invitation.invitedBy,
@@ -167,7 +167,7 @@ inviteRouter.post('/review/:status/:requestId/:groupId', userAuth, async (req, r
         res.status(200).json({ message: `You have ${status} the Invitation of Group ${group.groupName}` })
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error })
+        res.status(500).json({ message: error.message || "Internal Server Error", })
     }
 });
 

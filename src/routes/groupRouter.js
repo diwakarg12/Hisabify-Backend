@@ -9,6 +9,9 @@ groupRouter.post('/create', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
+        if (!loggedInUser) {
+            return res.status(401).json({ message: "You are not authorized, please login", });
+        }
         const { groupName, description, members } = req.body;
 
         const user = await User.findById(loggedInUser._id);
@@ -50,6 +53,7 @@ groupRouter.get('/searchUser/:email', userAuth, async (req, res) => {
     try {
         const loggedInUser = req.user;
         const { email } = req.params;
+        console.log('SearchedUser:', email)
 
         if (!loggedInUser) {
             return res.status(401).json({ message: "You are not authorized, please login", });

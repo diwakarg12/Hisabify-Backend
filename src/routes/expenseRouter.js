@@ -11,88 +11,120 @@ const User = require('../models/user.model');
 
 const expenseRouter = express.Router();
 
-expenseRouter.post('/add/:groupId?', userAuth, async (req, res) => {
+const addExpenseHandler = async (req, res) => {
     try {
 
         addExpenseValidation(req.body);
         const loggedInUser = req.user;
+        let splitExp = null;
         const { amount, description, category, createdFor, date, receiptImage, splitwith = [] } = req.body;
         const { groupId } = req.params
         if (!loggedInUser || !loggedInUser._id) {
-            res.status(401).json({ message: "You are not Authorized, Please Login" });
+            return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
-        if (isPersonal == false || !groupId) {
-            res.status(404).json({ message: "Please mention if it for personal or Group!" })
+        const group = groupId ? await Group.findById(groupId) : null;
+        if (groupId && !group) {
+            return res.status(404).json({ message: "Group Not Found" })
         }
 
-        const group = await Group.findById(groupId).populate('members');
-        if (isPersonal === false && !group) {
-            res.status(404).json({ message: "Please mention the type of GroupId" })
-        }
+        const personal = !groupId;
 
         const expenseData = {
-            amount: amount,
-            description: description,
-            category: category,
-            createdFor: createdFor,
+            amount,
+            description,
+            category,
+            createdFor,
             createdBy: loggedInUser._id,
-            date: date || new Date(),
-            groupId: groupId || null
+            date: date || new Date().toISOString().split("T")[0],
+            groupId: groupId || null,
+            isPersonal: !groupId,
         }
 
-        if (groupId) {
-            expenseData.isPersonal = false
-        };
-
-        if (receiptImage && receiptImage.startWith("data:image")) {
+        if (receiptImage && receiptImage?.startsWith("data:image")) {
             const uploadResponse = await cloudinary.uploader.upload(receiptImage);
             expenseData.receiptImage = uploadResponse.secure_url;
         };
 
-        console.log('Expense: ', expenseData)
-        const newExpense = new Expense(expenseData);
-        await newExpense.save();
+        const newExpense = await Expense.create(expenseData);
 
         if (group) {
-            let splitUsers = splitwith.length > 0 ? group.members.filter(m => splitwith.includes(m._id.toString())) : group.members;
+            let splitUsers = splitwith.length > 0 ? group.members.filter(m => splitwith.includes(m.toString())) : group.members;
+            const amountPerUser = amount / splitUsers.length;
 
-            const amountPerUser = amount / splitwith.length;
-
-            const splits = await splitUsers.map(user => ({
-                user: user._id,
-                amount: amountPerUser
-            }));
-
-            const splitExpense = await SplitExpense.create({
+            const splitData = {
                 expenseId: newExpense._id,
-                splitsBetween: splitUsers.map(user => user._id),
-                splits: splits
-            });
-            console.log('SplitExpense', splitExpense)
+                splitBetween: splitUsers,
+                splits: splitUsers.map(userId => ({
+                    user: userId,
+                    splittedAmount: amountPerUser,
+                })),
+            };
+
+            splitExp = await SplitExpense.create(splitData);
+            console.log('SplitExpense', splitExp)
         }
 
-        const logData = {
-            action: isPersonal ? 'PERSONAL EXPENSE ADDED' : 'GROUP EXPENSE ADDED',
-            description: isPersonal ? 'Personal Expense added successfully' : 'Group expense added successfully',
+        await logEvent({
+            action: personal ? 'PERSONAL EXPENSE ADDED' : 'GROUP EXPENSE ADDED',
+            description: personal ? 'Personal Expense added successfully' : 'Group expense added successfully',
             performedBy: loggedInUser._id,
             targetUser: createdFor,
-            group: group.groupName,
-            expense: newExpense._id,
+            group: group ? group._id : null,
+            expense: splitExp ? splitExp._id : newExpense._id,
             meta: {
-                amount: amount,
-                category: category,
+                amount,
+                category,
                 splitsBetween: splitwith,
             },
-        };
-        await logEvent(logData);
+        });
 
         res.status(200).json({ message: "Expense Added successfully", expense: newExpense })
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error });
+        res.status(500).json({
+            message: error.message || "Internal Server Error",
+        });
     }
-});
+}
+
+const getAllExpenseHandler = async (req, res) => {
+    try {
+
+        const loggedInUser = req.user;
+        const { groupId } = req.params;
+        if (!loggedInUser || !loggedInUser._id) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" })
+        }
+        if (groupId) {
+            const group = await Group.findById(groupId);
+            if (!group || !group.members.some(member => member.toString() === loggedInUser._id.toString())) {
+                return res.status(404).json({ message: "Invalid GroupId" })
+            }
+            const groupExpense = await Expense.find({ groupId: group._id, isPersonal: false, isDeleted: false, });
+            if (!groupExpense || groupExpense.length == 0) {
+                return res.status(404).json({ message: "No Expense Found in this Group" })
+            }
+
+            res.status(200).json({ message: `Your Group ${group.groupName} has ${groupExpense.length} Expenses`, expense: groupExpense });
+        } else {
+            const personalExpense = await Expense.find({ createdFor: loggedInUser._id, isPersonal: true, isDeleted: false, });
+            if (!personalExpense || personalExpense.length == 0) {
+                return res.status(404).json({ message: "You have not added Any Expense" })
+            }
+
+            res.status(200).json({ message: `You have ${personalExpense.length} in your expense list`, expense: personalExpense })
+        }
+
+    } catch (error) {
+        res.status(500).json({ message: "Error: ", error: error })
+    }
+}
+
+expenseRouter.post('/add', userAuth, addExpenseHandler);
+expenseRouter.post('/add/:groupId', userAuth, addExpenseHandler);
+expenseRouter.get('/getAllExpense', userAuth, getAllExpenseHandler);
+expenseRouter.get('/getAllExpense/:groupId', userAuth, getAllExpenseHandler);
 
 expenseRouter.patch('/edit/:expenseId', userAuth, async (req, res) => {
     try {
@@ -162,8 +194,7 @@ expenseRouter.post('/delete/:expenseId', userAuth, async (req, res) => {
             expense: expense._id,
             meta: {
                 splitExpense: splitExpense._id,
-                splitsBetween: splitExpense.splitsBetween.map(user => user.email),
-                splits: splits
+                splitsBetween: splitExpense?.splitBetween.map(user => user.email) || [],
             }
         };
         await logEvent(logData);
@@ -174,35 +205,8 @@ expenseRouter.post('/delete/:expenseId', userAuth, async (req, res) => {
     }
 });
 
-expenseRouter.get('/getAllExpense/:groupId?', userAuth, async (req, res) => {
-    try {
+// expenseRouter.get('/getAllExpense/:groupId?', userAuth, async (req, res) => {
 
-        const loggedInUser = req.user;
-        const { groupId } = req.params;
-        if (!loggedInUser || !loggedInUser._id) {
-            return res.status(401).json({ message: "You are not Authorized, Please Login" })
-        }
-        if (groupId) {
-            const group = await Group.findById(groupId);
-            if (!group || !group.members.some(member => member.toString() === loggedInUser._id.toString())) {
-                return res.status(404).json({ message: "Invalid GroupId" })
-            }
-            const groupExpense = await Expense.find({ groupId: group._id, isPersonal: false });
-            if (!groupExpense || groupExpense.length == 0) {
-                return res.status(404).json({ message: "No Expense Found in this Group" })
-            }
+// })
 
-            res.status(200).json({ message: `Your Group ${group.groupName} has ${groupExpense.length} Expenses`, expense: groupExpense });
-        } else {
-            const personalExpense = await Expense.find({ createdFor: loggedInUser._id, isPersonal: true });
-            if (!personalExpense || personalExpense.length == 0) {
-                return res.status(404).json({ message: "You have not added Any Expense" })
-            }
-
-            res.status(200).json({ message: `You have ${personalExpense.length} in your expense list`, expense: personalExpense })
-        }
-
-    } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error })
-    }
-})
+module.exports = expenseRouter;

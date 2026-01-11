@@ -7,6 +7,8 @@ const authRouter = require('../src/routes/authRouter');
 const profileRouter = require('./routes/profileRouter');
 const groupRouter = require('./routes/groupRouter');
 const inviteRouter = require('./routes/inviteRouter');
+const expenseRouter = require('./routes/expenseRouter');
+const messageRouter = require('./routes/messageRouter');
 const PORT = process.env.PORT || 3000;
 dotenv.config();
 const app = express();
@@ -25,6 +27,8 @@ app.use('/auth', authRouter);
 app.use('/profile', profileRouter);
 app.use('/group', groupRouter);
 app.use('/invite', inviteRouter);
+app.use('/expense', expenseRouter);
+app.use('/message', messageRouter)
 
 
 connectDB().then(() => {
