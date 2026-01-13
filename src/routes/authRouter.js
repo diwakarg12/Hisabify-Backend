@@ -36,7 +36,6 @@ authRouter.post('/signup', async (req, res) => {
         });
 
         const token = jwt.sign({ _id: user._id }, "Diwakar@123", { expiresIn: "1d" })
-        console.log('Token', token);
         if (!token) {
             return res.status(401).json({ message: "Erro while Generating token," })
         }
@@ -54,7 +53,6 @@ authRouter.post('/signup', async (req, res) => {
 
         res.status(200).json({ message: "User Created successfully", user: user })
     } catch (error) {
-        console.log('Error', error)
         res.status(500).json({ message: "Error: ", error: error.message });
     }
 });
@@ -78,7 +76,6 @@ authRouter.post('/login', async (req, res) => {
             return res.status(404).json({ error: "Invalid Credential" })
         }
         const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        console.log('Token', token);
         if (!token) {
             return res.status(404).json({ message: "Eror while Generating Token" });
         }

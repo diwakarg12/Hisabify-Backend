@@ -21,7 +21,6 @@ messageRouter.post("/send", userAuth, async (req, res) => {
             title,
             message
         });
-        console.log("message", result);
 
         const logData = {
             action: "Message SENT",
@@ -39,7 +38,7 @@ messageRouter.post("/send", userAuth, async (req, res) => {
         res.status(200).json({ message: "Message sent successfully!", message: result })
 
     } catch (error) {
-        res.status(500).json({ message: "Something went Wrong", error: error.message })
+        res.status(500).json({ message: error.message })
     }
 })
 
@@ -76,7 +75,6 @@ messageRouter.get("/getAll", userAuth, async (req, res) => {
         }
 
         const messages = await Message.find({ isDeleted: false });
-        console.log('Messages', messages);
 
         res.status(200).json({ message: `You Got ${messages.length} messages`, messages })
 

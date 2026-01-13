@@ -12,7 +12,6 @@ inviteRouter.post('/send/:groupId', userAuth, async (req, res) => {
         const loggedInUser = req.user;
         const { groupId } = req.params;
         const { invitedTo } = req.body;
-        console.log('LogedInUser', req.user._id)
 
         if (!loggedInUser) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
@@ -50,7 +49,6 @@ inviteRouter.post('/send/:groupId', userAuth, async (req, res) => {
             invitedTo: invitedTo,
             status: "pending"
         });
-        console.log('Invite', invite)
 
         const logData = {
             action: 'USER_INVITED_TO_GROUP',

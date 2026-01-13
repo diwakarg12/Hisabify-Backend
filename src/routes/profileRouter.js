@@ -58,13 +58,11 @@ profileRouter.patch('/update', userAuth, async (req, res) => {
         if (!loggedInUser || !loggedInUser._id) {
             return res.status(404).json({ message: "You are not Authorized, Please login" })
         }
-        console.log('url', profile)
         if (profile && profile.startsWith("data:image")) {
 
             try {
                 const uploadResponse = await cloudinary.uploader.upload(profile);
                 req.body.profile = uploadResponse.secure_url;
-                console.log('url', req.body.profile)
             } catch (error) {
                 return res.status(400).json({ message: "Error while Uploading the file" })
             }

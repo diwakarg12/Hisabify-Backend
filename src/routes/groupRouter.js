@@ -29,7 +29,6 @@ groupRouter.post('/create', userAuth, async (req, res) => {
             createdBy: user._id,
             members: [...members, user._id]
         });
-        console.log('Group', group);
 
         const logData = {
             action: 'GROUP_CREATED',
@@ -45,7 +44,7 @@ groupRouter.post('/create', userAuth, async (req, res) => {
         res.status(200).json({ message: "Group Created Successfully", group })
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(500).json({ message: error.message });
     }
 });
 
@@ -53,7 +52,6 @@ groupRouter.get('/searchUser/:email', userAuth, async (req, res) => {
     try {
         const loggedInUser = req.user;
         const { email } = req.params;
-        console.log('SearchedUser:', email)
 
         if (!loggedInUser) {
             return res.status(401).json({ message: "You are not authorized, please login", });
@@ -70,7 +68,7 @@ groupRouter.get('/searchUser/:email', userAuth, async (req, res) => {
 
         res.status(200).json({ message: `user getting successfully`, user });
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(500).json({ message: error.message });
     }
 });
 
@@ -86,21 +84,21 @@ groupRouter.get('/view', userAuth, async (req, res) => {
             .populate('createdBy', 'firstName lastName email profile')
             .populate('members', 'firstName lastName email profile');
 
-        console.log('Groups', groups);
 
         res.status(200).json({ message: `You are Added in ${groups.length} Groups`, groups: groups })
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(500).json({ message: error.message });
     }
 });
 
-groupRouter.post('/update/:groupId', userAuth, async (req, res) => {
+groupRouter.put('/update/:groupId', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
         const { groupId } = req.params;
         const { groupName, description } = req.body;
-        if (!loggedInUser || !loggedInUser.Id) {
+        console.log("GroupName", groupName, description)
+        if (!loggedInUser || !loggedInUser._id) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
@@ -127,7 +125,7 @@ groupRouter.post('/update/:groupId', userAuth, async (req, res) => {
         res.status(200).json({ message: "Group updated Successfully", group: group })
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(500).json({ message: error.message });
     }
 })
 
@@ -181,11 +179,11 @@ groupRouter.post('/remove-user/:groupId/:userId', userAuth, async (req, res) => 
 
         res.status(200).json({ message: `${user.firstName} has been removed`, group: group })
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error })
+        res.status(500).json({ message: error?.message })
     }
 });
 
-groupRouter.post('/delete/:groupId', userAuth, async (req, res) => {
+groupRouter.delete('/delete/:groupId', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
@@ -198,14 +196,15 @@ groupRouter.post('/delete/:groupId', userAuth, async (req, res) => {
         if (!group) {
             return res.status(404).json({ message: "NO Group Found" });
         }
-        console.log('group', group)
 
-        if (!group.members.includes(loggedInUser._id)) {
-            return res.status(400).json({ message: "User is not the member of this Group" })
+        const isMember = group?.members?.some(member => member?.toString() === loggedInUser?._id?.toString());
+        if (!isMember) {
+            return res.status(403).json({ message: "You are not the member of this Group" })
         }
 
+        const isCreator = loggedInUser?._id?.toString() === group?.createdBy?.toString()
 
-        if (loggedInUser._id.toString() === group.createdBy.toString()) {
+        if (!isCreator) {
             group.isDeleted = true;
             await group.save();
         } else {
@@ -214,20 +213,25 @@ groupRouter.post('/delete/:groupId', userAuth, async (req, res) => {
         }
 
         const logData = {
-            action: 'GROUP_DELETED',
-            description: 'Group deleted successfully',
-            performedBy: loggedInUser._id,
-            group: group._id,
+            action: isCreator ? "GROUP_DELETED" : "GROUP_LEFT",
+            description: isCreator ? 'Group deleted By Creator' : "User left the group",
+            performedBy: loggedInUser?._id,
+            group: group?._id,
             meta: {
-                groupName: group.groupName,
+                groupName: group?.groupName,
             },
         };
         await logEvent(logData)
 
-        res.status(200).json({ message: `${group.createdBy.equals(loggedInUser._id)} ?Group Deleted Successfully! : You left the group`, group: group });
+        res.status(200).json({
+            message: isCreator
+                ? "Group deleted successfully"
+                : "You left the group",
+            group,
+        });
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message })
+        res.status(500).json({ message: error.message })
     }
 });
 

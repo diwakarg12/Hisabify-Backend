@@ -20,7 +20,6 @@ app.use(cors({
     credentials: true
 }))
 
-console.log('Test', process.env.CLIENT_URL);
 
 
 app.use('/auth', authRouter);
