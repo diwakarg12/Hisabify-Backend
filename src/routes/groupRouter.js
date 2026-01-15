@@ -80,7 +80,7 @@ groupRouter.get('/view', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
-        const groups = await Group.find({ members: loggedInUser._id, isDeleted: false })
+        const groups = await Group.find({ members: loggedInUser._id, isDeleted: false }).lean()
             .populate('createdBy', 'firstName lastName email profile')
             .populate('members', 'firstName lastName email profile');
 
