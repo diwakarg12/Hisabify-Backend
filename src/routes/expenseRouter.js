@@ -101,10 +101,10 @@ const getAllExpenseHandler = async (req, res) => {
             if (!group || !group.members.includes(loggedInUser?._id)) {
                 return res.status(404).json({ message: "Invalid GroupId" })
             }
-            expenses = await Expense.find({ groupId: group?._id, isPersonal: false, isDeleted: false, }).lean().populate("createdFor", "firstName lastName email");
+            expenses = await Expense.find({ groupId: group?._id, isPersonal: false, isDeleted: false, }).populate("createdFor", "firstName lastName email");
 
         } else {
-            expenses = await Expense.find({ createdFor: loggedInUser?._id, isPersonal: true, isDeleted: false, }).lean().populate("createdFor", "firstName lastName email");
+            expenses = await Expense.find({ createdFor: loggedInUser?._id, isPersonal: true, isDeleted: false, }).populate("createdFor", "firstName lastName email");
         }
 
         if (!expenses.length) {
@@ -119,17 +119,22 @@ const getAllExpenseHandler = async (req, res) => {
             isDeleted: false,
         }).populate("splits.user", "firstName lastName email");
 
+        console.log("splitExpenses", splitExpenses)
+
 
         const splitMap = {};
 
         splitExpenses.forEach(se => {
             splitMap[se.expenseId.toString()] = se
         });
+        console.log("splitMap", splitMap)
 
         const enrichedExpenses = expenses.map(exp => ({
             ...exp,
             splitInfo: splitMap[exp?._id.toString()] || null
         }))
+
+        console.log("enrichedExpenses", enrichedExpenses)
 
         res.status(200).json({ message: "Success!", expense: enrichedExpenses })
 

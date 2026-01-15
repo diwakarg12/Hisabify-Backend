@@ -42,7 +42,7 @@ messageRouter.post("/send", userAuth, async (req, res) => {
     }
 })
 
-messageRouter.post("/delete/:id", userAuth, async (req, res) => {
+messageRouter.delete("/delete/:id", userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;

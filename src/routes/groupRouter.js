@@ -177,7 +177,13 @@ groupRouter.post('/remove-user/:groupId/:userId', userAuth, async (req, res) => 
         };
         await logEvent(logData)
 
-        res.status(200).json({ message: `${user.firstName} has been removed`, group: group })
+        res.status(200).json({
+            message: `${user.firstName} has been removed`,
+            groupId,
+            userId,
+            removedAt: new Date().toISOString(),
+        });
+
     } catch (error) {
         res.status(500).json({ message: error?.message })
     }

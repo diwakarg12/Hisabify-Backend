@@ -82,8 +82,11 @@ inviteRouter.get('/view/received-request', userAuth, async (req, res) => {
             .populate('groupId', "groupName")
             .populate('invitedBy', "firstName lastName email");
 
-        if (!receivedInvitations) {
-            return res.status(404).json({ message: "You haven't received any request" })
+        if (receivedInvitations.length === 0) {
+            return res.status(200).json({
+                message: "No received invitations",
+                receivedInvitations: []
+            });
         }
 
         res.status(200).json({ message: `You have Received ${receivedInvitations.length} invitations`, receivedInvitations: receivedInvitations });
@@ -106,8 +109,11 @@ inviteRouter.get('/view/sent-request/:groupId', userAuth, async (req, res) => {
             .populate('groupId', "groupName")
             .populate('invitedTo', "firstName lastName email profile");
 
-        if (!sentInvitations || sentInvitations.length === 0) {
-            return res.status(404).json({ message: "You haven't sent any request" })
+        if (sentInvitations.length === 0) {
+            return res.status(200).json({
+                message: "No sent invitations",
+                sentInvitations: []
+            });
         }
 
         res.status(200).json({ message: `You have Received ${sentInvitations.length} invitations`, sentInvitations: sentInvitations });
@@ -128,7 +134,11 @@ inviteRouter.post('/review/:status/:requestId/:groupId', userAuth, async (req, r
         const { status, requestId, groupId } = req.params;
         const invitation = await Invitation.findById(requestId);
         if (!invitation) {
-            return res.status(404).json({ message: "No Invitation found" });
+            return res.status(404).json({ message: "Invitation not found" });
+        }
+
+        if (invitation.status !== "pending") {
+            return res.status(400).json({ message: "Invitation already processed" });
         }
 
         const group = await Group.findById(groupId);
@@ -136,33 +146,54 @@ inviteRouter.post('/review/:status/:requestId/:groupId', userAuth, async (req, r
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (status === 'accepted') {
+        if (status === "accepted" || status === "rejected") {
+            if (String(invitation?.invitedTo) !== String(loggedInUser?._id)) {
+                return res.status(403).json({ message: "Not authorized" });
+            }
+
             invitation.status = status;
             await invitation.save();
 
-            await Group.findByIdAndUpdate(groupId, { $addToSet: { members: loggedInUser._id } });
+            if (status === 'accepted') {
+
+                await Group.findByIdAndUpdate(groupId, { $addToSet: { members: loggedInUser._id } });
+                // await Invitation.findByIdAndDelete(requestId);
+
+            }
+        } else if (status === "cancelled") {
+            if (String(invitation.invitedBy) !== String(loggedInUser._id)) {
+                return res.status(403).json({ message: "Not authorized to cancel invite" });
+            }
+
+            invitation.status = "cancelled";
+            await invitation.save();
 
         } else {
-            invitation.status = status;
-            await invitation.save();
+            return res.status(400).json({ message: "Invalid status" });
         }
 
+        const logMap = {
+            accepted: "USER_ACCEPTED_GROUP_INVITATION",
+            rejected: "USER_REJECTED_GROUP_INVITATION",
+            cancelled: "INVITATION_CANCELLED",
+        };
+
         const logData = {
-            action: status == "accepted" ? "USER_ACCEPTED_GROUP_INVITATION" : "USER_REJECTED_GROUP_INVITATION",
-            description: `User has ${status} Group Invitation`,
-            performedBy: loggedInUser._id,
-            targetUser: loggedInUser._id,
-            group: group._id,
+            action: logMap[status],
+            description: `Invitation ${status}`,
+            performedBy: loggedInUser?._id,
+            targetUser: loggedInUser?._id,
+            group: group?._id,
             meta: {
-                invitation: invitation._id,
-                invitedBy: invitation.invitedBy,
-                invitedTo: invitation.invitedTo,
-                status: status
+                invitation: invitation?._id,
+                invitedBy: invitation?.invitedBy,
+                invitedTo: invitation?.invitedTo,
+                status
             },
         };
         await logEvent(logData);
 
-        res.status(200).json({ message: `You have ${status} the Invitation of Group ${group.groupName}` })
+        res.status(200).json({ message: `You have ${status} the Invitation of Group ${group.groupName}`, requestId, status })
 
     } catch (error) {
         res.status(500).json({ message: error.message || "Internal Server Error", })
