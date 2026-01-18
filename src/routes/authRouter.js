@@ -84,6 +84,7 @@ authRouter.post('/login', async (req, res) => {
             httpOnly: true,
             sameSite: "none",
             secure: true,
+            path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
@@ -111,7 +112,14 @@ authRouter.post('/logout', userAuth, async (req, res) => {
         return res.status(401).json({ message: "You are not Authorized, Please login" })
     }
 
-    res.cookie('token', null, { expires: new Date(Date.now()) });
+    res.clearCookie('token',
+        {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            path: '/',
+        }
+    );
     const logData = {
         action: 'USER_lOGGED_OUT',
         description: "User Logged Out successfully",
