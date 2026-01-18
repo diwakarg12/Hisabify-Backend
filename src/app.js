@@ -21,7 +21,15 @@ app.use(cors({
     credentials: true
 }));
 
-
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error("DB connection failed", err);
+        req.status(500).json({ message: "Database Connection Failed" })
+    }
+});
 
 app.use('/auth', authRouter);
 app.use('/profile', profileRouter);
@@ -34,10 +42,7 @@ app.get('/', (req, res) => {
     res.status(200).json({ message: 'API running 🚀' });
 });
 
-connectDB();
-
 module.exports = app;
-
 
 
 //We can do this if the platform where we have to deploy the application is not serverless

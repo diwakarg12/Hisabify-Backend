@@ -19,7 +19,11 @@ const connectDB = async () => {
             .then((mongoose) => {
                 console.log("MongoDB connected");
                 return mongoose;
-            });
+            })
+            .catch(err => {
+                cached.promise = null; // 🔥 reset on failure
+                throw err;
+            })
     }
 
     cached.conn = await cached.promise;
