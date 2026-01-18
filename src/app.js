@@ -30,6 +30,10 @@ app.use('/invite', inviteRouter);
 app.use('/expense', expenseRouter);
 app.use('/message', messageRouter)
 
+app.get('/', (req, res) => {
+    res.status(200).json({ message: 'API running 🚀' });
+});
+
 connectDB();
 
 module.exports = app;
