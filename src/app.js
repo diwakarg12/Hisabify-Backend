@@ -1,9 +1,11 @@
+
+require('dns').setDefaultResultOrder('ipv4first');
+require('dotenv').config();
+
 const express = require('express');
-const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-dotenv.config();
 
 const authRouter = require('../src/routes/authRouter');
 const profileRouter = require('./routes/profileRouter');
@@ -21,16 +23,6 @@ app.use(cors({
     credentials: true
 }));
 
-app.use(async (req, res, next) => {
-    try {
-        await connectDB();
-        next();
-    } catch (error) {
-        console.error("DB connection failed", err);
-        req.status(500).json({ message: "Database Connection Failed" })
-    }
-});
-
 app.use('/auth', authRouter);
 app.use('/profile', profileRouter);
 app.use('/group', groupRouter);
@@ -42,18 +34,27 @@ app.get('/', (req, res) => {
     res.status(200).json({ message: 'API running 🚀' });
 });
 
-module.exports = app;
+const PORT = process.env.PORT || 3000;
 
+if (process.env.NODE_ENV === "development") {
+    connectDB().then(() => {
+        console.log('Database connected successfully');
+        app.listen(PORT, () => {
+            console.log(`Server is running on PORT: ${PORT}`);
+        })
+    }).catch((err) => {
+        console.log(`Error while Connecting to DB: ${err}`);
+    });
+} else {
+    app.use(async (req, res, next) => {
+        try {
+            await connectDB();
+            next();
+        } catch (error) {
+            console.error("DB connection failed", error);
+            req.status(500).json({ message: "Database Connection Failed" })
+        }
+    });
 
-//We can do this if the platform where we have to deploy the application is not serverless
-
-// const PORT = process.env.PORT || 3000;
-
-// connectDB().then(() => {
-//     console.log('Database connected successfully');
-//     app.listen(PORT, () => {
-//         console.log(`Server is running on PORT: ${PORT}`);
-//     })
-// }).catch((err) => {
-//     console.log(`Error while Connecting to DB: ${err}`);
-// });
+    module.exports = app;
+}
