@@ -3,18 +3,33 @@ const mongoose = require('mongoose');
 const splitExpenseSchema = new mongoose.Schema({
     expenseId: {
         type: mongoose.Schema.ObjectId,
-        require: [true, 'expenseId is required'],
+        required: [true, 'expenseId is required'],
         ref: 'Expense'
     },
     splitBetween: [{
-        type: mongoose.Schema.ObjectId,
-        ref: 'User'
+        user: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User',
+            default: null   // null for dummy users
+        },
+        dummyId: {
+            type: mongoose.Schema.ObjectId,
+            default: null   // null for real users
+        }
     }],
     splits: [{
         user: {
             type: mongoose.Schema.ObjectId,
             ref: 'User',
-            require: [true, 'split user is required']
+            default: null   // NOT required — dummy users won't have this
+        },
+        dummyId: {
+            type: mongoose.Schema.ObjectId,
+            default: null
+        },
+        name: {
+            type: String,
+            default: null   // populated for dummy users, null for real users
         },
         splittedAmount: {
             type: Number,
@@ -25,9 +40,9 @@ const splitExpenseSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     }
-
 }, { timestamps: true });
 
-const SplitExpense = new mongoose.model('SplitExpense', splitExpenseSchema);
+splitExpenseSchema.index({ expenseId: 1 });
 
+const SplitExpense = new mongoose.model('SplitExpense', splitExpenseSchema);
 module.exports = SplitExpense;

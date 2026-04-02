@@ -22,6 +22,16 @@ const groupSchema = new mongoose.Schema({
         type: mongoose.Schema.ObjectId,
         ref: "User"
     }],
+    dummyMembers: [{
+        name: {
+            type: String,
+            required: true
+        },
+        createdBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: "User"
+        }
+    }]
 
 }, { timestamps: true });
 
