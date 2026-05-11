@@ -24,8 +24,9 @@ app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes('http://localhost:5173/')) {
-            allowedOrigins = "http://localhost:5173/";
+        orign = "http://localhost:5173/";
+        if (!origin || allowedOrigins.includes(origin)) {
+
             callback(null, true);
         } else {
             callback(new Error("CORS not allowed"));
