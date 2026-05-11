@@ -16,7 +16,9 @@ const messageRouter = require('./routes/messageRouter');
 
 const app = express();
 
-const allowedOrigins = process.env.CLIENT_URL.split(",");
+// const allowedOrigins = process.env.CLIENT_URL.split(",");
+const allowedOrigins = ['http://localhost:5173/', 'https://hisabify-app.vercel.app/'];
+
 
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
