@@ -37,6 +37,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         require: [true, "Password is Required"]
     },
+    resetOtp: {
+        type: String,
+        default: null
+    },
+    resetOtpExpiry: {
+        type: Date,
+        default: null
+    },
     income: {
         type: Number,
         default: 0,

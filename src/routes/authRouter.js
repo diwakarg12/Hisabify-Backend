@@ -2,6 +2,8 @@ const express = require('express');
 const User = require('../models/user.model');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const sendResetOtp = require('../utils/sendResetOtp');
 const { signupValidation, loginValidation } = require('../utils/apiValidation');
 const logEvent = require('../utils/logger')
 const userAuth = require('../middlewares/userAuth.middleware')
@@ -57,7 +59,6 @@ authRouter.post('/signup', async (req, res) => {
     }
 });
 
-
 authRouter.post('/login', async (req, res) => {
     try {
         loginValidation(req.body);
@@ -105,6 +106,114 @@ authRouter.post('/login', async (req, res) => {
     }
 });
 
+authRouter.post('/send-reset-otp', async (req, res) => {
+    try {
+
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email is required"
+            });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        // Generate 6 digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Hash OTP
+        const hashedOtp = crypto
+            .createHash('sha256')
+            .update(otp)
+            .digest('hex');
+
+        user.resetOtp = hashedOtp;
+
+        user.resetOtpExpiry = Date.now() + 15 * 60 * 1000;
+
+        await user.save();
+
+        // Send email
+        await sendResetOtp(user.email, otp);
+
+        res.status(200).json({
+            message: "OTP sent successfully"
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: "Error",
+            error: error.message
+        });
+    }
+});
+
+authRouter.post('/verify-reset-otp', async (req, res) => {
+    try {
+
+        const { email, otp, newPassword } = req.body;
+
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({
+                message: "All fields are required"
+            });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        // Hash incoming OTP
+        const hashedOtp = crypto
+            .createHash('sha256')
+            .update(otp.toString().trim())
+            .digest('hex');
+
+        console.log("USER OTP HASH:", user.resetOtp);
+        console.log("INPUT OTP HASH:", hashedOtp);
+
+        if (
+            user.resetOtp !== hashedOtp ||
+            user.resetOtpExpiry < Date.now()
+        ) {
+            return res.status(400).json({
+                message: "Invalid or expired OTP"
+            });
+        }
+
+        // Hash new password
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+
+        user.password = passwordHash;
+
+        // Clear OTP
+        user.resetOtp = null;
+        user.resetOtpExpiry = null;
+
+        await user.save();
+
+        res.status(200).json({
+            message: "Password reset successful"
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: "Error",
+            error: error.message
+        });
+    }
+});
 
 authRouter.post('/logout', userAuth, async (req, res) => {
     const loggedInUser = req.user;
