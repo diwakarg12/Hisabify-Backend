@@ -17,20 +17,26 @@ const messageRouter = require('./routes/messageRouter');
 const app = express();
 
 // const allowedOrigins = process.env.CLIENT_URL.split(",");
-const allowedOrigins = ['http://localhost:5173/', 'https://hisabify-app.vercel.app/'];
+const allowedOrigins = [
+    "https://hisabify-app.vercel.app",
+    "http://localhost:5173",
+];
 
 
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(cors({
-    origin: (origin, callback) => {
-        orign = "http://localhost:5173/";
-        if (!origin || allowedOrigins.includes(origin)) {
+    origin: function (origin, callback) {
 
-            callback(null, true);
-        } else {
-            callback(new Error("CORS not allowed"));
+        if (!origin) {
+            return callback(null, true);
         }
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error("CORS not allowed"));
     },
     credentials: true,
 }));
