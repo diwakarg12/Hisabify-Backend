@@ -16,12 +16,19 @@ const messageRouter = require('./routes/messageRouter');
 
 const app = express();
 
+const allowedOrigins = process.env.CLIENT_URL.split(",");
 
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("CORS not allowed"));
+        }
+    },
+    credentials: true,
 }));
 
 let isConnected = false;
