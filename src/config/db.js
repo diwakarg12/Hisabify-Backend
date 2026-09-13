@@ -1,9 +1,4 @@
 const mongoose = require('mongoose');
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-    throw new Error("⚠️ Please define MONGO_URI in environment variables");
-}
 
 let cached = global.mongoose;
 
@@ -12,25 +7,29 @@ if (!cached) {
 }
 
 const connectDB = async () => {
-    // ✅ If connection already exists, reuse it
-    if (cached.conn) {
+    const MONGO_URI = process.env.MONGO_URI;
+    if (!MONGO_URI) {
+        throw new Error("⚠️ Please define MONGO_URI in environment variables");
+    }
+
+    // Reuse existing connection if active
+    if (cached.conn && mongoose.connection.readyState === 1) {
         return cached.conn;
     }
 
-    // ✅ If no promise, create one
     if (!cached.promise) {
         cached.promise = mongoose
-            .connect(process.env.MONGO_URI, {
+            .connect(MONGO_URI, {
                 bufferCommands: false,
             })
             .then((mongooseInstance) => {
-                console.log("MongoDB connected");
+                console.log("MongoDB connected successfully");
                 return mongooseInstance;
             })
             .catch(err => {
-                cached.promise = null; // 🔥 reset on failure
+                cached.promise = null; // Reset promise on error so retry works
                 throw err;
-            })
+            });
     }
 
     cached.conn = await cached.promise;
@@ -38,3 +37,4 @@ const connectDB = async () => {
 };
 
 module.exports = connectDB;
+

@@ -58,15 +58,22 @@ const buildSplitData = (expenseId, splitUsers, amount) => {
 // ─── ADD EXPENSE ──────────────────────────────────────────────────────────────────
 const addExpenseHandler = async (req, res) => {
     try {
-        addExpenseValidation(req.body);
         const loggedInUser = req.user;
 
         if (!loggedInUser || !loggedInUser._id) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
-        const { amount, description, category, createdFor, date, receiptImage, splitwith = [] } = req.body;
+        const { amount, description, category, createdFor, createdBy, date, receiptImage, splitwith = [] } = req.body;
         const { groupId } = req.params;
+
+        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+            return res.status(400).json({ message: "Amount is Required and must be greater than 0" });
+        }
+
+        if (!description || !description.trim()) {
+            return res.status(400).json({ message: "Description is Required" });
+        }
 
         const group = groupId ? await Group.findById(groupId) : null;
         if (groupId && !group) {
@@ -74,14 +81,15 @@ const addExpenseHandler = async (req, res) => {
         }
 
         const expenseData = {
-            amount,
-            description,
-            category,
-            createdFor,
-            createdBy: loggedInUser._id,
+            amount: Number(amount),
+            description: description.trim(),
+            category: category || 'other',
+            createdFor: createdFor || createdBy || loggedInUser._id,
+            createdBy: createdBy || loggedInUser._id,
             date: date || new Date().toISOString().split("T")[0],
             groupId: groupId || null,
             isPersonal: !groupId,
+            receiptImage: receiptImage || ""
         };
 
         if (receiptImage && receiptImage.startsWith("data:image")) {
@@ -95,14 +103,14 @@ const addExpenseHandler = async (req, res) => {
         if (group) {
             const splitUsers = buildSplitUsers(splitwith, group);
             validateDummyUsers(splitUsers, group);
-            splitExp = await SplitExpense.create(buildSplitData(newExpense._id, splitUsers, amount));
+            splitExp = await SplitExpense.create(buildSplitData(newExpense._id, splitUsers, Number(amount)));
         }
 
         await logEvent({
             action: !groupId ? 'PERSONAL_EXPENSE_ADDED' : 'GROUP_EXPENSE_ADDED',
             description: !groupId ? 'Personal expense added successfully' : 'Group expense added successfully',
             performedBy: loggedInUser._id,
-            targetUser: createdFor,
+            targetUser: expenseData.createdFor,
             group: group ? group._id : null,
             expense: newExpense._id,
             meta: { amount, category, splitsBetween: splitwith },
