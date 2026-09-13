@@ -144,9 +144,14 @@ const getAllExpenseHandler = async (req, res) => {
                 .populate("createdFor", "firstName lastName email")
                 .populate("createdBy", "firstName lastName email");
         } else {
-            expenses = await Expense.find({ createdFor: loggedInUser._id, isPersonal: true, isDeleted: false })
+            expenses = await Expense.find({
+                $or: [{ createdFor: loggedInUser._id }, { createdBy: loggedInUser._id }],
+                isPersonal: true,
+                isDeleted: false
+            })
                 .lean()
-                .populate("createdFor", "firstName lastName email");
+                .populate("createdFor", "firstName lastName email")
+                .populate("createdBy", "firstName lastName email");
         }
 
         if (!expenses.length) {
