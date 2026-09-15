@@ -13,13 +13,22 @@ const groupRouter = require('./routes/groupRouter');
 const inviteRouter = require('./routes/inviteRouter');
 const expenseRouter = require('./routes/expenseRouter');
 const messageRouter = require('./routes/messageRouter');
+const notificationRouter = require('./routes/notificationRouter');
 
 const app = express();
 
-// const allowedOrigins = process.env.CLIENT_URL.split(",");
-const allowedOrigins = [
+const allowedOrigins = process.env.CLIENT_URL
+    ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+    : [];
+
+const defaultOrigins = [
     'http://localhost:5173',
-    'https://hisabify-app.vercel.app'
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'https://hisabify-app.vercel.app',
+    'https://hisabify.vercel.app'
 ];
 
 app.use(express.json({ limit: "10mb" }));
@@ -27,13 +36,29 @@ app.use(cookieParser());
 
 const corsOptions = {
     origin: (origin, callback) => {
+        // Allow non-browser calls (like mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        // Allow configured CLIENT_URL origins & defaults
+        if (allowedOrigins.includes(origin) || defaultOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        // Allow any localhost / 127.0.0.1 port (for local dev flexibility)
+        if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+            return callback(null, true);
+        }
+
+        // Allow Vercel preview or production deployments
+        if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+            return callback(null, true);
+        }
+
         return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-background-sync', 'X-Background-Sync'],
 };
 
 app.use(cors(corsOptions));
@@ -64,7 +89,8 @@ app.use('/profile', profileRouter);
 app.use('/group', groupRouter);
 app.use('/invite', inviteRouter);
 app.use('/expense', expenseRouter);
-app.use('/message', messageRouter)
+app.use('/message', messageRouter);
+app.use('/notification', notificationRouter);
 
 app.get('/', (req, res) => {
     res.status(200).json({ message: 'API running 🚀' });

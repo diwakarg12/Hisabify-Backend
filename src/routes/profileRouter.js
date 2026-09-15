@@ -103,15 +103,21 @@ profileRouter.delete('/delete', userAuth, async (req, res) => {
     try {
 
         const loggedInUser = req.user;
-        if (!loggedInUser._id) {
-            res.status(401).json({ message: "You are not Authorized, Please Login" })
+        if (!loggedInUser || !loggedInUser._id) {
+            return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
         const user = await User.findByIdAndDelete(loggedInUser._id);
         if (!user) {
-            res.status(404).json({ message: "No user Found with the Given userId" })
+            return res.status(404).json({ message: "No user Found with the Given userId" });
         }
-        res.cookie('token', null, { expires: new Date(Date.now()) });
+
+        res.clearCookie('token', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            path: '/',
+        });
 
         //Logging
         const logData = {
@@ -123,7 +129,9 @@ profileRouter.delete('/delete', userAuth, async (req, res) => {
                 email: loggedInUser.email
             },
         };
-        res.status(200).json({ message: "Your Account is Deleted and Data has been removed form the Database", user: null })
+        await logEvent(logData);
+
+        res.status(200).json({ message: "Your Account is Deleted and Data has been removed form the Database", user: null });
 
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error.message });

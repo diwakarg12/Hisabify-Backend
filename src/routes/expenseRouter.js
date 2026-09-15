@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const express = require('express');
 const userAuth = require('../middlewares/userAuth.middleware');
 const Expense = require('../models/expense.model');
@@ -6,6 +7,7 @@ const SplitExpense = require('../models/splitExpense.model');
 const { addExpenseValidation } = require('../utils/apiValidation');
 const cloudinary = require('../config/cloudinary');
 const logEvent = require('../utils/logger');
+const { notifyGroupMembers } = require('../utils/notificationHelper');
 
 const expenseRouter = express.Router();
 
@@ -58,15 +60,22 @@ const buildSplitData = (expenseId, splitUsers, amount) => {
 // ─── ADD EXPENSE ──────────────────────────────────────────────────────────────────
 const addExpenseHandler = async (req, res) => {
     try {
-        addExpenseValidation(req.body);
         const loggedInUser = req.user;
 
         if (!loggedInUser || !loggedInUser._id) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" });
         }
 
-        const { amount, description, category, createdFor, date, receiptImage, splitwith = [] } = req.body;
+        const { amount, description, category, createdFor, createdBy, date, receiptImage, splitwith = [] } = req.body;
         const { groupId } = req.params;
+
+        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+            return res.status(400).json({ message: "Amount is Required and must be greater than 0" });
+        }
+
+        if (!description || !description.trim()) {
+            return res.status(400).json({ message: "Description is Required" });
+        }
 
         const group = groupId ? await Group.findById(groupId) : null;
         if (groupId && !group) {
@@ -74,14 +83,15 @@ const addExpenseHandler = async (req, res) => {
         }
 
         const expenseData = {
-            amount,
-            description,
-            category,
-            createdFor,
-            createdBy: loggedInUser._id,
+            amount: Number(amount),
+            description: description.trim(),
+            category: category || 'other',
+            createdFor: createdFor || createdBy || loggedInUser._id,
+            createdBy: createdBy || loggedInUser._id,
             date: date || new Date().toISOString().split("T")[0],
             groupId: groupId || null,
             isPersonal: !groupId,
+            receiptImage: receiptImage || ""
         };
 
         if (receiptImage && receiptImage.startsWith("data:image")) {
@@ -95,18 +105,27 @@ const addExpenseHandler = async (req, res) => {
         if (group) {
             const splitUsers = buildSplitUsers(splitwith, group);
             validateDummyUsers(splitUsers, group);
-            splitExp = await SplitExpense.create(buildSplitData(newExpense._id, splitUsers, amount));
+            splitExp = await SplitExpense.create(buildSplitData(newExpense._id, splitUsers, Number(amount)));
         }
 
         await logEvent({
             action: !groupId ? 'PERSONAL_EXPENSE_ADDED' : 'GROUP_EXPENSE_ADDED',
             description: !groupId ? 'Personal expense added successfully' : 'Group expense added successfully',
             performedBy: loggedInUser._id,
-            targetUser: createdFor,
+            targetUser: expenseData.createdFor,
             group: group ? group._id : null,
             expense: newExpense._id,
             meta: { amount, category, splitsBetween: splitwith },
         });
+
+        if (groupId) {
+            await notifyGroupMembers({
+                groupId,
+                senderId: loggedInUser._id,
+                action: 'ADDED',
+                expense: newExpense,
+            });
+        }
 
         res.status(200).json({ message: "Expense Added successfully", expense: newExpense });
 
@@ -127,27 +146,41 @@ const getAllExpenseHandler = async (req, res) => {
 
         let expenses;
         if (groupId) {
-            const group = await Group.findById(groupId);
-            if (!group || !group.members.some(m => m.toString() === loggedInUser._id.toString())) {
-                return res.status(404).json({ message: "Invalid GroupId or you are not a member" });
+            if (!mongoose.Types.ObjectId.isValid(groupId)) {
+                return res.status(400).json({ message: "Invalid Group ID format" });
             }
+
+            const group = await Group.findOne({ _id: groupId, isDeleted: false });
+            if (!group) {
+                return res.status(404).json({ message: "Group Not Found" });
+            }
+
+            const isMember = group.members.some(m => String(m) === String(loggedInUser._id));
+            if (!isMember) {
+                return res.status(403).json({ message: "You are not a member of this Group" });
+            }
+
             expenses = await Expense.find({ groupId: group._id, isPersonal: false, isDeleted: false })
                 .lean()
                 .populate("createdFor", "firstName lastName email")
                 .populate("createdBy", "firstName lastName email");
         } else {
-            expenses = await Expense.find({ createdFor: loggedInUser._id, isPersonal: true, isDeleted: false })
+            expenses = await Expense.find({
+                $or: [{ createdFor: loggedInUser._id }, { createdBy: loggedInUser._id }],
+                isPersonal: true,
+                isDeleted: false
+            })
                 .lean()
-                .populate("createdFor", "firstName lastName email");
+                .populate("createdFor", "firstName lastName email")
+                .populate("createdBy", "firstName lastName email");
         }
 
-        if (!expenses.length) {
-            return res.status(200).json({ expense: [] });
+        if (!expenses || expenses.length === 0) {
+            return res.status(200).json({ message: "No expenses found", expense: [] });
         }
 
         const expenseIds = expenses.map(e => e._id);
 
-        // ✅ Fixed: populate splitBetween.user (not splitBetween directly) since it's now [{user, dummyId}]
         const splitExpenses = await SplitExpense.find({
             expenseId: { $in: expenseIds },
             isDeleted: false,
@@ -158,12 +191,14 @@ const getAllExpenseHandler = async (req, res) => {
 
         const splitMap = {};
         splitExpenses.forEach(se => {
-            splitMap[se.expenseId.toString()] = se;
+            if (se && se.expenseId) {
+                splitMap[se.expenseId.toString()] = se;
+            }
         });
 
         const enrichedExpenses = expenses.map(exp => ({
             ...exp,
-            splitInfo: splitMap[exp._id.toString()] || null
+            splitInfo: exp._id ? splitMap[exp._id.toString()] || null : null
         }));
 
         res.status(200).json({ message: "Success!", expense: enrichedExpenses });
@@ -232,6 +267,15 @@ expenseRouter.patch('/edit/:expenseId', userAuth, async (req, res) => {
             meta: { amount, category },
         });
 
+        if (expense.groupId) {
+            await notifyGroupMembers({
+                groupId: expense.groupId,
+                senderId: loggedInUser._id,
+                action: 'UPDATED',
+                expense,
+            });
+        }
+
         res.status(200).json({ message: "Expense edited successfully", updatedExpense: expense });
 
     } catch (error) {
@@ -289,6 +333,15 @@ expenseRouter.delete('/delete/:expenseId', userAuth, async (req, res) => {
                     : [],
             }
         });
+
+        if (expense.groupId) {
+            await notifyGroupMembers({
+                groupId: expense.groupId,
+                senderId: loggedInUser._id,
+                action: 'DELETED',
+                expense,
+            });
+        }
 
         res.status(200).json({ message: "Expense deleted successfully", expenseId });
 

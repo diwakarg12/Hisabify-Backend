@@ -15,11 +15,13 @@ const expenseSchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        enum: {
-            values: ["shopping", "Food & Dining", "Groceries", "Restaurants", "Education", "Travel", "Entertainment", "Health & Wellness", "Gifts & Donations", "Miscellaneous"],
-            message: "${VALUE} is not a valid Category"
-        },
-        default: "Miscellaneous"
+        default: "other"
+    },
+    categoryId: {
+        type: mongoose.Schema.ObjectId,
+        ref: "CustomCategory",
+        required: false,
+        default: null
     },
     createdBy: {
         type: mongoose.Schema.ObjectId,
@@ -28,8 +30,8 @@ const expenseSchema = new mongoose.Schema({
     },
     createdFor: {
         type: mongoose.Schema.ObjectId,
-        required: [true, "Contributor is Required"],
-        ref: "User"
+        ref: "User",
+        default: null
     },
     isPersonal: {
         type: Boolean,
@@ -63,6 +65,7 @@ expenseSchema.index({ createdFor: 1 });
 expenseSchema.index({ groupId: 1 });
 expenseSchema.index({ date: 1 });
 expenseSchema.index({ isPersonal: 1 });
+expenseSchema.index({ categoryId: 1 });
 
 const Expense = new mongoose.model("Expense", expenseSchema);
 module.exports = Expense;

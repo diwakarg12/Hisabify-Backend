@@ -9,6 +9,21 @@ const logEvent = require('../utils/logger')
 const userAuth = require('../middlewares/userAuth.middleware')
 const authRouter = express.Router();
 
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
+const CLEAR_COOKIE_OPTIONS = {
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
+    path: '/',
+};
+
 authRouter.post('/signup', async (req, res) => {
     try {
         signupValidation(req.body);
@@ -22,7 +37,7 @@ authRouter.post('/signup', async (req, res) => {
             ]
         });
         if (existingUser) {
-            throw new Error('user Already Exist with given Email or Phone')
+            throw new Error('User already exists with given Email or Phone');
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
@@ -37,11 +52,18 @@ authRouter.post('/signup', async (req, res) => {
             password: passwordHash
         });
 
-        const token = jwt.sign({ _id: user._id }, "Diwakar@123", { expiresIn: "1d" })
+        const token = jwt.sign(
+            { _id: user._id },
+            process.env.JWT_SECRET || "Diwakar@123",
+            { expiresIn: "7d" }
+        );
+
         if (!token) {
-            return res.status(401).json({ message: "Erro while Generating token," })
+            return res.status(401).json({ message: "Error while generating token" });
         }
-        res.cookie('token', token)
+
+        res.cookie('token', token, COOKIE_OPTIONS);
+
         const logData = {
             action: 'USER_SIGNUP',
             description: "User signed up successfully",
@@ -51,9 +73,9 @@ authRouter.post('/signup', async (req, res) => {
                 email: user.email
             },
         };
-        await logEvent(logData)
+        await logEvent(logData);
 
-        res.status(200).json({ message: "User Created successfully", user: user })
+        res.status(200).json({ message: "User Created successfully", user: user });
     } catch (error) {
         res.status(500).json({ message: "Error: ", error: error.message });
     }
@@ -70,24 +92,22 @@ authRouter.post('/login', async (req, res) => {
             ]
         });
         if (!user) {
-            return res.status(404).json({ error: "Invalid Credential" });
+            return res.status(404).json({ error: "Invalid Credentials" });
         }
         const pass = await bcrypt.compare(password, user.password);
         if (!pass) {
-            return res.status(404).json({ error: "Invalid Credential" })
+            return res.status(404).json({ error: "Invalid Credentials" });
         }
-        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        const token = jwt.sign(
+            { _id: user._id },
+            process.env.JWT_SECRET || "Diwakar@123",
+            { expiresIn: "7d" }
+        );
         if (!token) {
-            return res.status(404).json({ message: "Eror while Generating Token" });
+            return res.status(404).json({ message: "Error while generating token" });
         }
 
-        res.cookie('token', token, {
-            httpOnly: true,
-            sameSite: "none",
-            secure: true,
-            path: '/',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+        res.cookie('token', token, COOKIE_OPTIONS);
 
         const logData = {
             action: 'USER_LOGIN',
@@ -98,11 +118,11 @@ authRouter.post('/login', async (req, res) => {
                 email: user.email
             },
         };
-        await logEvent(logData)
+        await logEvent(logData);
 
-        res.status(200).json({ message: "Login Successfull", user: user })
+        res.status(200).json({ message: "Login Successful", user: user });
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message })
+        res.status(500).json({ message: "Error: ", error: error.message });
     }
 });
 
@@ -180,9 +200,6 @@ authRouter.post('/verify-reset-otp', async (req, res) => {
             .update(otp.toString().trim())
             .digest('hex');
 
-        console.log("USER OTP HASH:", user.resetOtp);
-        console.log("INPUT OTP HASH:", hashedOtp);
-
         if (
             user.resetOtp !== hashedOtp ||
             user.resetOtpExpiry < Date.now()
@@ -218,19 +235,12 @@ authRouter.post('/verify-reset-otp', async (req, res) => {
 authRouter.post('/logout', userAuth, async (req, res) => {
     const loggedInUser = req.user;
     if (!loggedInUser) {
-        return res.status(401).json({ message: "You are not Authorized, Please login" })
+        return res.status(401).json({ message: "You are not Authorized, Please login" });
     }
 
-    res.clearCookie('token',
-        {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none',
-            path: '/',
-        }
-    );
+    res.clearCookie('token', CLEAR_COOKIE_OPTIONS);
     const logData = {
-        action: 'USER_lOGGED_OUT',
+        action: 'USER_LOGGED_OUT',
         description: "User Logged Out successfully",
         performedBy: loggedInUser._id,
         meta: {
@@ -238,9 +248,9 @@ authRouter.post('/logout', userAuth, async (req, res) => {
             email: loggedInUser.email
         },
     };
-    await logEvent(logData)
+    await logEvent(logData);
 
-    res.status(200).json({ message: "user LoggedOut Successfully", user: null })
+    res.status(200).json({ message: "User Logged Out Successfully", user: null });
 });
 
 authRouter.get('/check', userAuth, (req, res) => {

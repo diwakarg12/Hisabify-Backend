@@ -12,7 +12,7 @@ groupRouter.post('/create', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not authorized, please login" });
         }
 
-        const { groupName, description, members = [], dummyMembers = [] } = req.body;
+        const { groupName, description, members = [], dummyMembers = [], categories } = req.body;
 
         const user = await User.findById(loggedInUser._id);
         if (!user) {
@@ -30,6 +30,11 @@ groupRouter.post('/create', userAuth, async (req, res) => {
             return res.status(400).json({ message: "Duplicate dummy user names are not allowed" });
         }
 
+        const defaultCategories = ["Food & Dining", "Rent & Bills", "Travel & Fuel", "Shopping", "Entertainment", "Medical"];
+        const finalCategories = Array.isArray(categories) && categories.length > 0
+            ? Array.from(new Set(categories.map(c => String(c).trim()).filter(Boolean)))
+            : defaultCategories;
+
         const group = await Group.create({
             groupName,
             description,
@@ -38,7 +43,8 @@ groupRouter.post('/create', userAuth, async (req, res) => {
             dummyMembers: dummyMembers.map(name => ({
                 name,
                 createdBy: user._id
-            }))
+            })),
+            categories: finalCategories
         });
 
         await logEvent({
@@ -141,23 +147,34 @@ groupRouter.delete('/remove-dummy/:groupId/:dummyId', userAuth, async (req, res)
     }
 });
 
-groupRouter.get('/searchUser/:email', userAuth, async (req, res) => {
+groupRouter.get('/searchUser/:query?', userAuth, async (req, res) => {
     try {
         const loggedInUser = req.user;
-        const { email } = req.params;
+        const searchQuery = req.params.query || req.query.query || "";
 
         if (!loggedInUser) {
             return res.status(401).json({ message: "You are not authorized, please login" });
         }
 
-        const user = await User.findOne({ email }).select(
-            "_id firstName lastName email phone gender profile"
-        );
-        if (!user) {
-            return res.status(404).json({ message: "No user found with this email" });
+        if (!searchQuery.trim()) {
+            return res.status(200).json({ message: "No query provided", users: [], user: null });
         }
 
-        res.status(200).json({ message: "User found successfully", user });
+        const searchRegex = new RegExp(searchQuery.trim(), "i");
+        const users = await User.find({
+            _id: { $ne: loggedInUser._id },
+            $or: [
+                { firstName: searchRegex },
+                { lastName: searchRegex },
+                { email: searchRegex }
+            ]
+        }).select("_id firstName lastName email phone gender profile").limit(15);
+
+        if (!users || users.length === 0) {
+            return res.status(404).json({ message: "No users found matching query", users: [], user: null });
+        }
+
+        res.status(200).json({ message: "Users found successfully", users, user: users[0] });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -185,7 +202,7 @@ groupRouter.put('/update/:groupId', userAuth, async (req, res) => {
     try {
         const loggedInUser = req.user;
         const { groupId } = req.params;
-        const { groupName, description } = req.body;
+        const { groupName, description, categories } = req.body;
 
         if (!loggedInUser || !loggedInUser._id) {
             return res.status(401).json({ message: "You are not Authorized, Please Login" });
@@ -202,6 +219,13 @@ groupRouter.put('/update/:groupId', userAuth, async (req, res) => {
 
         group.groupName = groupName;
         group.description = description;
+
+        // Preserve existing categories so old expenses are never corrupted
+        const existingCats = group.categories || [];
+        const incomingCats = Array.isArray(categories) ? categories.map(c => String(c).trim()).filter(Boolean) : [];
+        const mergedCategories = Array.from(new Set([...existingCats, ...incomingCats]));
+        group.categories = mergedCategories;
+
         await group.save();
 
         await logEvent({
@@ -290,30 +314,24 @@ groupRouter.delete('/delete/:groupId', userAuth, async (req, res) => {
             return res.status(404).json({ message: "No Group Found" });
         }
 
-        const isMember = group.members.some(member => member.toString() === loggedInUser._id.toString());
-        if (!isMember) {
-            return res.status(403).json({ message: "You are not a member of this Group" });
+        const isCreator = String(loggedInUser._id) === String(group.createdBy);
+        if (!isCreator) {
+            return res.status(403).json({ message: "Only the group owner can delete this group" });
         }
 
-        const isCreator = loggedInUser._id.toString() === group.createdBy.toString();
-
-        if (isCreator) {
-            group.isDeleted = true;
-        } else {
-            group.members = group.members.filter(member => member.toString() !== loggedInUser._id.toString());
-        }
+        group.isDeleted = true;
         await group.save();
 
         await logEvent({
-            action: isCreator ? "GROUP_DELETED" : "GROUP_LEFT",
-            description: isCreator ? 'Group deleted by creator' : "User left the group",
+            action: "GROUP_DELETED",
+            description: 'Group deleted by owner',
             performedBy: loggedInUser._id,
             group: group._id,
             meta: { groupName: group.groupName },
         });
 
         res.status(200).json({
-            message: isCreator ? "Group deleted successfully" : "You left the group",
+            message: "Group deleted successfully",
             group,
         });
     } catch (error) {
