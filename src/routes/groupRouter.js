@@ -141,23 +141,34 @@ groupRouter.delete('/remove-dummy/:groupId/:dummyId', userAuth, async (req, res)
     }
 });
 
-groupRouter.get('/searchUser/:email', userAuth, async (req, res) => {
+groupRouter.get('/searchUser/:query?', userAuth, async (req, res) => {
     try {
         const loggedInUser = req.user;
-        const { email } = req.params;
+        const searchQuery = req.params.query || req.query.query || "";
 
         if (!loggedInUser) {
             return res.status(401).json({ message: "You are not authorized, please login" });
         }
 
-        const user = await User.findOne({ email }).select(
-            "_id firstName lastName email phone gender profile"
-        );
-        if (!user) {
-            return res.status(404).json({ message: "No user found with this email" });
+        if (!searchQuery.trim()) {
+            return res.status(200).json({ message: "No query provided", users: [], user: null });
         }
 
-        res.status(200).json({ message: "User found successfully", user });
+        const searchRegex = new RegExp(searchQuery.trim(), "i");
+        const users = await User.find({
+            _id: { $ne: loggedInUser._id },
+            $or: [
+                { firstName: searchRegex },
+                { lastName: searchRegex },
+                { email: searchRegex }
+            ]
+        }).select("_id firstName lastName email phone gender profile").limit(15);
+
+        if (!users || users.length === 0) {
+            return res.status(404).json({ message: "No users found matching query", users: [], user: null });
+        }
+
+        res.status(200).json({ message: "Users found successfully", users, user: users[0] });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
