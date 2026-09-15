@@ -3,11 +3,11 @@ const User = require('../models/user.model');
 
 const userAuth = async (req, res, next) => {
     try {
-        const token = req.cookies.token;
-        console.log('Auth Token', token);
+        const authHeader = req.headers.authorization || req.headers.Authorization;
+        const token = req.cookies?.token || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
 
         if (!token) {
-            return res.status(401).json({ message: "No token found, Please Login Again" })
+            return res.status(401).json({ message: "No token found, Please Login Again" });
         }
 
         const decodedData = jwt.verify(token, process.env.JWT_SECRET);

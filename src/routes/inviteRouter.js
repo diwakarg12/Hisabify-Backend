@@ -161,7 +161,10 @@ inviteRouter.post('/review/:status/:requestId/:groupId', userAuth, async (req, r
 
             }
         } else if (status === "cancelled") {
-            if (String(invitation.invitedBy) !== String(loggedInUser._id)) {
+            if (
+                String(invitation.invitedBy) !== String(loggedInUser._id) &&
+                String(group.createdBy) !== String(loggedInUser._id)
+            ) {
                 return res.status(403).json({ message: "Not authorized to cancel invite" });
             }
 

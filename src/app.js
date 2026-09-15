@@ -13,6 +13,7 @@ const groupRouter = require('./routes/groupRouter');
 const inviteRouter = require('./routes/inviteRouter');
 const expenseRouter = require('./routes/expenseRouter');
 const messageRouter = require('./routes/messageRouter');
+const notificationRouter = require('./routes/notificationRouter');
 
 const app = express();
 
@@ -57,7 +58,7 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-background-sync', 'X-Background-Sync'],
 };
 
 app.use(cors(corsOptions));
@@ -88,7 +89,8 @@ app.use('/profile', profileRouter);
 app.use('/group', groupRouter);
 app.use('/invite', inviteRouter);
 app.use('/expense', expenseRouter);
-app.use('/message', messageRouter)
+app.use('/message', messageRouter);
+app.use('/notification', notificationRouter);
 
 app.get('/', (req, res) => {
     res.status(200).json({ message: 'API running 🚀' });

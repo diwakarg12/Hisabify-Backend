@@ -31,8 +31,11 @@ const groupSchema = new mongoose.Schema({
             type: mongoose.Schema.ObjectId,
             ref: "User"
         }
-    }]
-
+    }],
+    categories: {
+        type: [String],
+        default: ["Food & Dining", "Rent & Bills", "Travel & Fuel", "Shopping", "Entertainment", "Medical"]
+    }
 }, { timestamps: true });
 
 groupSchema.index({ members: 1, isDeleted: 1 });
