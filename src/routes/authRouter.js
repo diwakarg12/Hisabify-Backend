@@ -76,7 +76,7 @@ authRouter.post('/signup', async (req, res) => {
         };
         await logEvent(logData);
 
-        res.status(200).json({ message: "User Created successfully", user: user });
+        res.status(200).json({ message: "User Created successfully", user: user, token: token });
     } catch (error) {
         res.status(400).json({ message: error.message || "Signup failed. Please check your inputs." });
     }
@@ -122,7 +122,7 @@ authRouter.post('/login', async (req, res) => {
         };
         await logEvent(logData);
 
-        res.status(200).json({ message: "Login Successful", user: user });
+        res.status(200).json({ message: "Login Successful", user: user, token: token });
     } catch (error) {
         res.status(400).json({ message: error.message || "Login failed. Please check your credentials." });
     }
