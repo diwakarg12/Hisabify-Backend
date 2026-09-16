@@ -146,24 +146,25 @@ profileRouter.patch('/update-email', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
         }
 
-        if (!validator.isEmail(email)) {
-            return res.status(400).json({ message: "Invalid Email" })
+        const normalizedEmail = String(email || '').toLowerCase().trim();
+        if (!validator.isEmail(normalizedEmail)) {
+            return res.status(400).json({ message: "Please enter a valid email address" })
         }
-        const existingUser = await User.findOne({ email: email });
-        if (existingUser) {
-            return res.status(409).json({ message: "User already exist with this email id" })
+        const existingUser = await User.findOne({ email: normalizedEmail });
+        if (existingUser && String(existingUser._id) !== String(loggedInUser._id)) {
+            return res.status(409).json({ message: "Another user account already exists with this email address" })
         }
 
         const user = await User.findByIdAndUpdate(
             loggedInUser._id,
-            { email: email },
+            { email: normalizedEmail },
             { new: true }
         );
 
-        res.status(200).json({ message: 'Email Updated successfully!', user: user })
+        res.status(200).json({ message: 'Email updated successfully!', user: user })
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(400).json({ message: error.message || "Failed to update email address" });
     }
 });
 
@@ -175,25 +176,32 @@ profileRouter.patch('/update-phone', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please Login" })
         }
 
-        if (!validator.isMobilePhone(phone)) {
-            return res.status(400).json({ message: "Invalid Phone" })
+        const phoneStr = String(phone || '').trim();
+        if (!phoneStr) {
+            return res.status(400).json({ message: "Phone number is required" });
+        }
+        if (!phoneStr.startsWith('+')) {
+            return res.status(400).json({ message: "Please include country code (+91) before phone number (e.g. +919876543210)" });
+        }
+        if (!validator.isMobilePhone(phoneStr, 'any')) {
+            return res.status(400).json({ message: "Invalid phone number format (e.g. +919876543210)" });
         }
 
-        const existingUser = await User.findOne({ phone: phone });
-        if (existingUser) {
-            return res.status(409).json({ message: "User already exist with this phone" })
+        const existingUser = await User.findOne({ phone: phoneStr });
+        if (existingUser && String(existingUser._id) !== String(loggedInUser._id)) {
+            return res.status(409).json({ message: "Another user account already exists with this phone number" });
         }
 
         const user = await User.findByIdAndUpdate(
             loggedInUser._id,
-            { phone: phone },
+            { phone: phoneStr },
             { new: true }
         );
 
-        res.status(200).json({ message: 'Phone Updated successfully!', user: user })
+        res.status(200).json({ message: 'Phone number updated successfully!', user: user })
 
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(400).json({ message: error.message || "Failed to update phone number" });
     }
 })
 

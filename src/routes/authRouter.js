@@ -29,15 +29,16 @@ authRouter.post('/signup', async (req, res) => {
         signupValidation(req.body);
         const { firstName, lastName, gender, dob, phone, email, password } = req.body;
         const parsedDate = new Date(dob);
+        const normalizedEmail = email ? email.toLowerCase().trim() : email;
 
         const existingUser = await User.findOne({
             $or: [
-                { email: email },
+                { email: normalizedEmail },
                 { phone: phone }
             ]
         });
         if (existingUser) {
-            throw new Error('User already exists with given Email or Phone');
+            return res.status(400).json({ message: "An account with this Email or Phone number already exists" });
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
@@ -48,7 +49,7 @@ authRouter.post('/signup', async (req, res) => {
             dob: parsedDate,
             gender: gender,
             phone: phone,
-            email: email,
+            email: normalizedEmail,
             password: passwordHash
         });
 
@@ -59,7 +60,7 @@ authRouter.post('/signup', async (req, res) => {
         );
 
         if (!token) {
-            return res.status(401).json({ message: "Error while generating token" });
+            return res.status(500).json({ message: "Error while generating token" });
         }
 
         res.cookie('token', token, COOKIE_OPTIONS);
@@ -77,7 +78,7 @@ authRouter.post('/signup', async (req, res) => {
 
         res.status(200).json({ message: "User Created successfully", user: user });
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(400).json({ message: error.message || "Signup failed. Please check your inputs." });
     }
 });
 
@@ -85,18 +86,19 @@ authRouter.post('/login', async (req, res) => {
     try {
         loginValidation(req.body);
         const { email, password } = req.body;
+        const normalizedInput = email ? email.toLowerCase().trim() : email;
         const user = await User.findOne({
             $or: [
-                { email: email },
+                { email: normalizedInput },
                 { phone: email }
             ]
         });
         if (!user) {
-            return res.status(404).json({ error: "Invalid Credentials" });
+            return res.status(400).json({ message: "Invalid credentials. Please check your email/phone and password." });
         }
         const pass = await bcrypt.compare(password, user.password);
         if (!pass) {
-            return res.status(404).json({ error: "Invalid Credentials" });
+            return res.status(400).json({ message: "Invalid credentials. Please check your email/phone and password." });
         }
         const token = jwt.sign(
             { _id: user._id },
@@ -104,7 +106,7 @@ authRouter.post('/login', async (req, res) => {
             { expiresIn: "7d" }
         );
         if (!token) {
-            return res.status(404).json({ message: "Error while generating token" });
+            return res.status(500).json({ message: "Error while generating token" });
         }
 
         res.cookie('token', token, COOKIE_OPTIONS);
@@ -122,7 +124,7 @@ authRouter.post('/login', async (req, res) => {
 
         res.status(200).json({ message: "Login Successful", user: user });
     } catch (error) {
-        res.status(500).json({ message: "Error: ", error: error.message });
+        res.status(400).json({ message: error.message || "Login failed. Please check your credentials." });
     }
 });
 
@@ -137,11 +139,12 @@ authRouter.post('/send-reset-otp', async (req, res) => {
             });
         }
 
-        const user = await User.findOne({ email });
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await User.findOne({ email: normalizedEmail });
 
         if (!user) {
             return res.status(404).json({
-                message: "User not found"
+                message: "No user account found with this email address"
             });
         }
 
@@ -168,9 +171,8 @@ authRouter.post('/send-reset-otp', async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({
-            message: "Error",
-            error: error.message
+        res.status(400).json({
+            message: error.message || "Failed to send reset OTP"
         });
     }
 });
@@ -186,7 +188,8 @@ authRouter.post('/verify-reset-otp', async (req, res) => {
             });
         }
 
-        const user = await User.findOne({ email });
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await User.findOne({ email: normalizedEmail });
 
         if (!user) {
             return res.status(404).json({
@@ -225,9 +228,8 @@ authRouter.post('/verify-reset-otp', async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({
-            message: "Error",
-            error: error.message
+        res.status(400).json({
+            message: error.message || "Failed to reset password"
         });
     }
 });

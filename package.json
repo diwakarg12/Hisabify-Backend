@@ -13,7 +13,8 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "merge-users": "node src/scripts/mergeDuplicateUsers.js"
   },
   "engines": {
     "node": ">=18"
