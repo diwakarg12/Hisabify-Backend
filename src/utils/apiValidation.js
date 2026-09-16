@@ -23,33 +23,42 @@ const isValidDOB = (dob) => {
 
 const signupValidation = (data) => {
     const { firstName, lastName, email, phone, gender, dob, password } = data;
-    const parsedDob = new Date(dob);
+    const parsedDob = dob ? new Date(dob) : null;
     const allowedGender = ["male", "female", "other"];
+    const phoneStr = String(phone || '').trim();
 
-    if (!validator.isLength(firstName, { min: 3, max: 20 })) {
-        throw new Error("FirstName should be between 3 to 20 character long");
-    } else if (!validator.isLength(lastName, { min: 3, max: 20 })) {
-        throw new Error("LastName should be between 3 to 20 character long");
-    } else if (!validator.isEmail(email)) {
-        throw new Error("Invalid Email");
-    } else if (!validator.isMobilePhone(phone)) {
-        throw new Error("Invalid Phone Number");
-    } else if (!allowedGender.includes(gender)) {
-        throw new Error("Invalid Gender");
-    } else if (!validator.isStrongPassword(password)) {
-        throw new Error("Password is not Strong");
+    if (!firstName || !validator.isLength(String(firstName).trim(), { min: 3, max: 20 })) {
+        throw new Error("First name must be between 3 and 20 characters long");
+    } else if (!lastName || !validator.isLength(String(lastName).trim(), { min: 3, max: 20 })) {
+        throw new Error("Last name must be between 3 and 20 characters long");
+    } else if (!email || !validator.isEmail(String(email).trim())) {
+        throw new Error("Please enter a valid email address (e.g. name@example.com)");
+    } else if (!phoneStr) {
+        throw new Error("Phone number is required");
+    } else if (!phoneStr.startsWith('+')) {
+        throw new Error("Please include country code (+91) before phone number (e.g. +919876543210)");
+    } else if (!validator.isMobilePhone(phoneStr, 'any')) {
+        throw new Error("Invalid phone number format. Please enter a valid mobile number with country code (e.g. +919876543210)");
+    } else if (!gender || !allowedGender.includes(String(gender).toLowerCase())) {
+        throw new Error("Invalid gender selected. Please select Male, Female, or Other");
+    } else if (!password || !validator.isStrongPassword(String(password))) {
+        throw new Error("Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.");
     } else if (parsedDob) {
         isValidDOB(parsedDob);
     }
 };
 
 const loginValidation = (data) => {
-    const isEmail = validator.isEmail(data.email);
-    const isPhone = validator.isMobilePhone(data.email, 'any');
+    const input = String(data.email || '').trim();
+    if (!input) {
+        throw new Error("Email or phone number is required");
+    }
+    const isEmail = validator.isEmail(input);
+    const isPhone = validator.isMobilePhone(input, 'any');
     if (!isEmail && !isPhone) {
-        throw new Error("Enter a valid email or phone number");
-    } else if (!validator.isStrongPassword(data.password)) {
-        throw new Error("Please check password again");
+        throw new Error("Please enter a valid email address or phone number with country code (e.g. +919876543210)");
+    } else if (!data.password) {
+        throw new Error("Password is required");
     }
 };
 
