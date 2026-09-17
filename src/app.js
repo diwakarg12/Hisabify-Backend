@@ -1,5 +1,7 @@
 
+const path = require('path');
 require('dns').setDefaultResultOrder('ipv4first');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('dotenv').config();
 
 const express = require('express');
