@@ -1,17 +1,24 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
-
 const sendResetOtp = async (email, otp) => {
+    const emailUser = process.env.EMAIL_USER?.trim();
+    // Remove spaces from Google App Password if present (e.g. "kbrg zrvp uoep nqgv" -> "kbrgzrvpuoepnqgv")
+    const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s+/g, '') : '';
+
+    if (!emailUser || !emailPass) {
+        throw new Error("Email configuration error: EMAIL_USER or EMAIL_PASS is missing in server environment variables.");
+    }
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: emailUser,
+            pass: emailPass,
+        },
+    });
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: emailUser,
         to: email,
         subject: 'Hisabify Password Reset OTP',
         html: `
@@ -23,7 +30,6 @@ const sendResetOtp = async (email, otp) => {
     };
 
     await transporter.sendMail(mailOptions);
-
     console.log('OTP Email Sent');
 };
 
