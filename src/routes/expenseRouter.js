@@ -161,6 +161,7 @@ const getAllExpenseHandler = async (req, res) => {
             }
 
             expenses = await Expense.find({ groupId: group._id, isPersonal: false, isDeleted: false })
+                .sort({ createdAt: -1 })
                 .lean()
                 .populate("createdFor", "firstName lastName email")
                 .populate("createdBy", "firstName lastName email");
@@ -170,6 +171,7 @@ const getAllExpenseHandler = async (req, res) => {
                 isPersonal: true,
                 isDeleted: false
             })
+                .sort({ createdAt: -1 })
                 .lean()
                 .populate("createdFor", "firstName lastName email")
                 .populate("createdBy", "firstName lastName email");
@@ -218,7 +220,7 @@ expenseRouter.patch('/edit/:expenseId', userAuth, async (req, res) => {
             return res.status(401).json({ message: "You are not Authorized, Please login again" });
         }
 
-        const { amount, description, category, date, receiptImage, splitwith = [] } = req.body;
+        const { description, category, date, receiptImage, splitwith = [] } = req.body;
 
         const expense = await Expense.findOne({ _id: expenseId, isDeleted: false });
         if (!expense) {
@@ -230,10 +232,10 @@ expenseRouter.patch('/edit/:expenseId', userAuth, async (req, res) => {
             return res.status(403).json({ message: "You are not authorized to edit this Expense" });
         }
 
-        expense.amount = amount;
-        expense.category = category;
-        expense.description = description;
-        expense.date = date;
+        // PRICE LOCK: Amount cannot be changed after creation!
+        if (description !== undefined) expense.description = description;
+        if (category !== undefined) expense.category = category;
+        if (date !== undefined) expense.date = date;
 
         if (receiptImage && receiptImage.startsWith("data:image")) {
             const uploadResponse = await cloudinary.uploader.upload(receiptImage);
@@ -242,7 +244,7 @@ expenseRouter.patch('/edit/:expenseId', userAuth, async (req, res) => {
 
         await expense.save();
 
-        // ✅ Fixed: now handles dummy members in split update
+        // Handle dummy members & splits update using locked expense.amount
         if (expense.groupId) {
             const group = await Group.findById(expense.groupId);
             if (!group) {
@@ -254,7 +256,7 @@ expenseRouter.patch('/edit/:expenseId', userAuth, async (req, res) => {
 
             await SplitExpense.findOneAndUpdate(
                 { expenseId, isDeleted: false },
-                buildSplitData(expenseId, splitUsers, amount),
+                buildSplitData(expenseId, splitUsers, expense.amount),
                 { new: true }
             );
         }
@@ -264,7 +266,7 @@ expenseRouter.patch('/edit/:expenseId', userAuth, async (req, res) => {
             description: 'Expense updated successfully',
             performedBy: loggedInUser._id,
             expense: expense._id,
-            meta: { amount, category },
+            meta: { amount: expense.amount, category },
         });
 
         if (expense.groupId) {
